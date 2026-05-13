@@ -1,0 +1,415 @@
+﻿<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Safety &amp; Audit - Overseas Review Platform</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#616363",
+                        "primary": "#000000",
+                        "outline-variant": "#cfc4c5",
+                        "surface-container": "#eeeeee",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#dfe0e0",
+                        "primary-container": "#1b1b1b",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "background": "#f9f9f9",
+                        "inverse-on-surface": "#f1f1f1",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-surface": "#1b1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-container": "#848484",
+                        "on-background": "#1b1b1b",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#4c4546",
+                        "on-error-container": "#93000a",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "on-primary-fixed-variant": "#474747",
+                        "inverse-surface": "#303030",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed-dim": "#c6c6c6",
+                        "on-tertiary-fixed": "#1b1b1b",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#1b1b1b",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "outline": "#7e7576",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#000000",
+                        "on-primary-container": "#848484",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "primary-fixed-dim": "#c6c6c6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "row-height-standard": "48px",
+                        "gutter": "16px",
+                        "base": "4px",
+                        "row-height-dense": "32px",
+                        "container-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "title-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "title-sm": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { background-color: #f9f9f9; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    </style>
+<link href="/stitch-static/stitch_runtime.css?v=20260512s" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-x-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-surface-container-lowest fixed left-0 top-0 h-full w-[240px] z-40 border-r border-outline-variant dark:border-outline-variant flex flex-col h-screen py-gutter hidden md:flex">
+<div class="px-gutter mb-8">
+<h1 class="font-display-lg text-display-lg font-bold tracking-tighter text-primary dark:text-primary">HEYTEA</h1>
+<p class="font-body-sm text-body-sm text-secondary mt-1">Overseas Review</p>
+</div>
+<ul class="flex-1 flex flex-col gap-1 px-2">
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/dashboard_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="dashboard">dashboard</span>
+<span>Dashboard</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="assignment_turned_in">assignment_turned_in</span>
+<span>Collection Tasks</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/store_coverage_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="storefront">storefront</span>
+<span>Store Coverage</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/review_workbench_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="rate_review">rate_review</span>
+<span>Review Workbench</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/platform_matrix_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="grid_view">grid_view</span>
+<span>Platform Matrix</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/quality_report_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="analytics">analytics</span>
+<span>Quality Report</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-3 rounded-DEFAULT text-primary dark:text-primary font-bold bg-surface-container dark:bg-surface-container-highest border-l-4 border-primary opacity-90 transition-opacity duration-150" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="security" data-weight="fill" style="font-variation-settings: 'FILL' 1;">security</span>
+<span>Safety &amp; Audit</span>
+</a>
+</li>
+</ul>
+<div class="mt-auto px-2 pt-4 border-t border-outline-variant mx-4">
+<button class="w-full bg-primary text-on-primary py-2 px-4 rounded-none font-body-md flex items-center justify-center gap-2 mb-4 hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">download</span>
+                Export Report
+            </button>
+<ul class="flex flex-col gap-1">
+<li>
+<a class="flex items-center gap-3 px-4 py-2 rounded-DEFAULT text-secondary font-body-md hover:text-primary hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="settings">settings</span>
+<span>Settings</span>
+</a>
+</li>
+<li>
+<a class="flex items-center gap-3 px-4 py-2 rounded-DEFAULT text-secondary font-body-md hover:text-primary hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" data-icon="help">help</span>
+<span>Help Center</span>
+</a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- TopNavBar -->
+<header class="bg-surface-container-lowest dark:bg-surface-container-lowest fixed top-0 right-0 w-[calc(100%-240px)] z-50 h-row-height-standard border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-container-padding hidden md:flex">
+<div class="flex items-center gap-4">
+<span class="font-title-sm text-title-sm font-bold text-primary dark:text-primary">Overseas Review Platform</span>
+<div class="h-4 w-[1px] bg-outline-variant mx-2"></div>
+<nav class="flex gap-6">
+<a class="text-primary dark:text-primary font-bold border-b-2 border-primary pb-1 h-row-height-standard flex items-center scale-95 transition-transform duration-100" href="#">
+                    ReadOnly Mode Enabled
+                </a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<select class="bg-surface-container-lowest border border-outline-variant text-primary px-3 py-1.5 rounded-none font-body-sm hover:bg-surface-container-high transition-colors focus:ring-0 focus:outline-none cursor-pointer">
+<option>English</option>
+<option>中文</option>
+</select>
+<button class="bg-surface-container-lowest border border-primary text-primary px-4 py-1.5 rounded-none font-body-sm hover:bg-surface-container-high transition-colors">
+                Weekly Range
+            </button>
+<button class="bg-primary text-on-primary px-4 py-1.5 rounded-none font-body-sm hover:bg-primary-container transition-colors">
+                Export
+            </button>
+<div class="flex gap-3 ml-2">
+<button class="text-secondary hover:text-primary dark:hover:text-primary-fixed transition-all flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="text-secondary hover:text-primary dark:hover:text-primary-fixed transition-all flex items-center justify-center">
+<span class="material-symbols-outlined" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="md:ml-[240px] md:mt-row-height-standard p-container-padding min-h-screen">
+<!-- Header Section -->
+<div class="mb-8">
+<h2 class="font-display-lg text-display-lg text-primary mb-2">Safety &amp; Audit Operations</h2>
+<p class="font-body-md text-secondary max-w-3xl">Comprehensive monitoring and immutable logging of system activity, ensuring adherence to read-only compliance constraints.</p>
+</div>
+<!-- Layout Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+<!-- Policy Statement - Full Width -->
+<div class="lg:col-span-12 bg-surface-container-lowest border border-outline-variant p-6 rounded-DEFAULT">
+<div class="flex items-start gap-4">
+<div class="bg-primary text-on-primary p-3 flex-shrink-0">
+<span class="material-symbols-outlined text-[32px]">policy</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-primary mb-2 uppercase tracking-tight">Read-Only Collection Policy (Inviolable)</h3>
+<p class="font-body-md text-on-secondary-container mb-4">This system is structurally constrained to non-destructive operations. All automated and manual interactions are strictly limited to data retrieval. Any attempt to execute write, modify, or delete operations via automated scripts or API endpoints will be blocked at the network perimeter.</p>
+<div class="grid grid-cols-2 md:grid-cols-6 gap-4 mt-6">
+<!-- Prohibited Action Tags -->
+<div class="bg-error-container border border-error px-3 py-2 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-error mb-1">reply</span>
+<span class="font-label-caps text-label-caps text-error">Reply</span>
+<span class="font-label-caps text-[9px] text-error mt-1 opacity-80 border-t border-error/30 pt-1 w-full block truncate">FORBIDDEN</span>
+</div>
+<div class="bg-error-container border border-error px-3 py-2 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-error mb-1">save</span>
+<span class="font-label-caps text-label-caps text-error">Save</span>
+<span class="font-label-caps text-[9px] text-error mt-1 opacity-80 border-t border-error/30 pt-1 w-full block truncate">FORBIDDEN</span>
+</div>
+<div class="bg-error-container border border-error px-3 py-2 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-error mb-1">send</span>
+<span class="font-label-caps text-label-caps text-error">Submit</span>
+<span class="font-label-caps text-[9px] text-error mt-1 opacity-80 border-t border-error/30 pt-1 w-full block truncate">FORBIDDEN</span>
+</div>
+<div class="bg-error-container border border-error px-3 py-2 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-error mb-1">delete</span>
+<span class="font-label-caps text-label-caps text-error">Delete</span>
+<span class="font-label-caps text-[9px] text-error mt-1 opacity-80 border-t border-error/30 pt-1 w-full block truncate">FORBIDDEN</span>
+</div>
+<div class="bg-error-container border border-error px-3 py-2 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-error mb-1">check_circle</span>
+<span class="font-label-caps text-label-caps text-error">Confirm</span>
+<span class="font-label-caps text-[9px] text-error mt-1 opacity-80 border-t border-error/30 pt-1 w-full block truncate">FORBIDDEN</span>
+</div>
+<div class="bg-error-container border border-error px-3 py-2 flex flex-col items-center justify-center text-center">
+<span class="material-symbols-outlined text-error mb-1">payments</span>
+<span class="font-label-caps text-label-caps text-error">Payment</span>
+<span class="font-label-caps text-[9px] text-error mt-1 opacity-80 border-t border-error/30 pt-1 w-full block truncate">FORBIDDEN</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Task Audit Log - Left Column (Data Dense) -->
+<div class="lg:col-span-8 flex flex-col gap-gutter">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT overflow-hidden flex-1">
+<div class="bg-surface-container border-b border-outline-variant px-4 py-3 flex justify-between items-center">
+<h4 class="font-label-caps text-label-caps text-primary uppercase">Task Audit Log (Browser Automation)</h4>
+<span class="bg-primary text-on-primary font-label-caps text-[10px] px-2 py-0.5 rounded-full">LIVE</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full min-w-max text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="font-label-caps text-label-caps text-secondary px-3 py-2">Timestamp</th>
+<th class="font-label-caps text-label-caps text-secondary px-3 py-2">Task ID</th>
+<th class="font-label-caps text-label-caps text-secondary px-3 py-2">Target Node</th>
+<th class="font-label-caps text-label-caps text-secondary px-3 py-2">Action Type</th>
+<th class="font-label-caps text-label-caps text-secondary px-3 py-2">Status</th>
+</tr>
+</thead>
+<tbody class="font-data-mono text-data-mono">
+<tr class="border-b border-surface-container">
+<td class="px-3 py-2 text-on-surface-variant">2023-10-24 08:12:44.102</td>
+<td class="px-3 py-2 text-primary">TSK-8921-A</td>
+<td class="px-3 py-2 text-on-surface-variant">div.review-container</td>
+<td class="px-3 py-2 text-secondary">Document.querySelectorAll</td>
+<td class="px-3 py-2"><span class="bg-primary text-on-primary font-label-caps px-2 py-0.5">READ_OK</span></td>
+</tr>
+<tr class="border-b border-surface-container">
+<td class="px-3 py-2 text-on-surface-variant">2023-10-24 08:12:44.150</td>
+<td class="px-3 py-2 text-primary">TSK-8921-A</td>
+<td class="px-3 py-2 text-on-surface-variant">span.rating-score</td>
+<td class="px-3 py-2 text-secondary">Element.textContent</td>
+<td class="px-3 py-2"><span class="bg-primary text-on-primary font-label-caps px-2 py-0.5">READ_OK</span></td>
+</tr>
+<tr class="border-b border-surface-container bg-error-container/20">
+<td class="px-3 py-2 text-on-surface-variant">2023-10-24 08:12:45.001</td>
+<td class="px-3 py-2 text-primary">TSK-8921-A</td>
+<td class="px-3 py-2 text-on-surface-variant">button.submit-reply</td>
+<td class="px-3 py-2 text-error font-bold">Element.click</td>
+<td class="px-3 py-2"><span class="bg-error text-on-error font-label-caps px-2 py-0.5">BLOCKED_POLICY</span></td>
+</tr>
+<tr class="border-b border-surface-container">
+<td class="px-3 py-2 text-on-surface-variant">2023-10-24 08:13:01.442</td>
+<td class="px-3 py-2 text-primary">TSK-8922-B</td>
+<td class="px-3 py-2 text-on-surface-variant">table.store-data</td>
+<td class="px-3 py-2 text-secondary">Window.scrollTo</td>
+<td class="px-3 py-2"><span class="bg-primary text-on-primary font-label-caps px-2 py-0.5">NAV_OK</span></td>
+</tr>
+<tr>
+<td class="px-3 py-2 text-on-surface-variant">2023-10-24 08:13:02.110</td>
+<td class="px-3 py-2 text-primary">TSK-8922-B</td>
+<td class="px-3 py-2 text-on-surface-variant">img.store-front</td>
+<td class="px-3 py-2 text-secondary">Network.fetch</td>
+<td class="px-3 py-2"><span class="bg-primary text-on-primary font-label-caps px-2 py-0.5">READ_OK</span></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- Right Column (Human Intervention & Export) -->
+<div class="lg:col-span-4 flex flex-col gap-gutter">
+<!-- Human-Gate Records -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT">
+<div class="bg-surface-container border-b border-outline-variant px-4 py-3">
+<h4 class="font-label-caps text-label-caps text-primary uppercase">Human-Gate Records</h4>
+</div>
+<div class="p-4 flex flex-col gap-4">
+<!-- Record 1 -->
+<div class="border-l-2 border-primary pl-3">
+<div class="flex justify-between items-start mb-1 gap-2">
+<span class="font-data-mono text-[11px] text-secondary">2023-10-24 07:45Z</span>
+<span class="bg-primary text-on-primary font-label-caps text-[9px] px-1.5 py-0.5">RESOLVED</span>
+</div>
+<h5 class="font-title-sm text-primary mb-1">CAPTCHA Challenge</h5>
+<p class="font-body-sm text-on-surface-variant">Google Maps POI scraping interrupted. Manual solver initiated by operator.</p>
+</div>
+<!-- Record 2 -->
+<div class="border-l-2 border-error pl-3">
+<div class="flex justify-between items-start mb-1 gap-2">
+<span class="font-data-mono text-[11px] text-secondary">2023-10-23 22:10Z</span>
+<span class="bg-error text-on-error font-label-caps text-[9px] px-1.5 py-0.5">ABORTED</span>
+</div>
+<h5 class="font-title-sm text-primary mb-1">Write-Action Suspected</h5>
+<p class="font-body-sm text-on-surface-variant">Form submission field detected in viewport during automated scroll. Task terminated as safety precaution.</p>
+</div>
+<!-- Record 3 -->
+<div class="border-l-2 border-secondary pl-3">
+<div class="flex justify-between items-start mb-1 gap-2">
+<span class="font-data-mono text-[11px] text-secondary">2023-10-23 14:05Z</span>
+<span class="bg-surface-dim text-primary font-label-caps text-[9px] px-1.5 py-0.5">VERIFIED</span>
+</div>
+<h5 class="font-title-sm text-primary mb-1">Unusual Login Pattern</h5>
+<p class="font-body-sm text-on-surface-variant">Yelp session token refresh required manual re-authentication.</p>
+</div>
+</div>
+</div>
+<!-- Export Log -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-DEFAULT flex-1">
+<div class="bg-surface-container border-b border-outline-variant px-4 py-3">
+<h4 class="font-label-caps text-label-caps text-primary uppercase">Export Activity Log</h4>
+</div>
+<ul class="divide-y divide-surface-container">
+<li class="p-3">
+<div class="flex justify-between items-center mb-1 gap-2">
+<span class="font-title-sm text-primary">J. Chen (Reg. Mgr)</span>
+<span class="font-data-mono text-[11px] text-secondary">Today, 08:30</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary">download</span>
+<span class="font-body-sm text-on-surface-variant truncate">SG_Store_Reviews_W42.csv</span>
+</div>
+</li>
+<li class="p-3">
+<div class="flex justify-between items-center mb-1 gap-2">
+<span class="font-title-sm text-primary">A. Wong (Analyst)</span>
+<span class="font-data-mono text-[11px] text-secondary">Yesterday, 16:45</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary">download</span>
+<span class="font-body-sm text-on-surface-variant truncate">Risk_Matrix_Export.pdf</span>
+</div>
+</li>
+<li class="p-3">
+<div class="flex justify-between items-center mb-1 gap-2">
+<span class="font-title-sm text-primary">System Auto-Job</span>
+<span class="font-data-mono text-[11px] text-secondary">Yesterday, 00:00</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px] text-secondary">database</span>
+<span class="font-body-sm text-on-surface-variant truncate">Daily_Snapshot_Archive.json</span>
+</div>
+</li>
+</ul>
+</div>
+</div>
+</div>
+</main>
+
+<script defer src="/stitch-static/stitch_runtime.js?v=20260513e"></script>
+</body></html>
+
+
+
+
+
+
+
+
+
+
+
+

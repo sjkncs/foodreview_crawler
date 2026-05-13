@@ -1,0 +1,545 @@
+﻿<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Collection Tasks - Overseas Review Platform</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#616363",
+                        "primary": "#000000",
+                        "outline-variant": "#cfc4c5",
+                        "surface-container": "#eeeeee",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#dfe0e0",
+                        "primary-container": "#1b1b1b",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "background": "#f9f9f9",
+                        "inverse-on-surface": "#f1f1f1",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-surface": "#1b1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-container": "#848484",
+                        "on-background": "#1b1b1b",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#4c4546",
+                        "on-error-container": "#93000a",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "on-primary-fixed-variant": "#474747",
+                        "inverse-surface": "#303030",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed-dim": "#c6c6c6",
+                        "on-tertiary-fixed": "#1b1b1b",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#1b1b1b",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "outline": "#7e7576",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#000000",
+                        "on-primary-container": "#848484",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "primary-fixed-dim": "#c6c6c6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "row-height-standard": "48px",
+                        "gutter": "16px",
+                        "base": "4px",
+                        "row-height-dense": "32px",
+                        "container-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "title-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "display-lg": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["11px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "title-sm": ["16px", { "lineHeight": "24px", "fontWeight": "600" }],
+                        "body-sm": ["13px", { "lineHeight": "18px", "fontWeight": "400" }],
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "data-mono": ["13px", { "lineHeight": "18px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="/stitch-static/stitch_runtime.css?v=20260512s" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen overflow-hidden flex">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-lowest text-primary font-body-md fixed left-0 top-0 h-full w-[240px] z-40 border-r border-outline-variant flex flex-col py-gutter">
+<div class="px-container-padding mb-8">
+<h1 class="font-display-lg text-display-lg font-bold tracking-tighter text-primary">HEYTEA</h1>
+<p class="font-label-caps text-label-caps text-secondary uppercase mt-1">Overseas Review</p>
+</div>
+<div class="flex-1 overflow-y-auto">
+<ul class="flex flex-col space-y-1">
+<li>
+<a class="flex items-center px-container-padding py-3 text-secondary font-body-md hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/dashboard_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4">dashboard</span>
+                        Dashboard
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-container-padding py-3 text-primary font-bold bg-surface-container border-l-4 border-primary opacity-90 transition-opacity duration-150" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4" style="font-variation-settings: 'FILL' 1;">assignment_turned_in</span>
+                        Collection Tasks
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-container-padding py-3 text-secondary font-body-md hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/store_coverage_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4">storefront</span>
+                        Store Coverage
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-container-padding py-3 text-secondary font-body-md hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/review_workbench_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4">rate_review</span>
+                        Review Workbench
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-container-padding py-3 text-secondary font-body-md hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/platform_matrix_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4">grid_view</span>
+                        Platform Matrix
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-container-padding py-3 text-secondary font-body-md hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/quality_report_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4">analytics</span>
+                        Quality Report
+                    </a>
+</li>
+<li>
+<a class="flex items-center px-container-padding py-3 text-secondary font-body-md hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-4">security</span>
+                        Safety &amp; Audit
+                    </a>
+</li>
+</ul>
+</div>
+<div class="px-container-padding pt-4 border-t border-outline-variant mt-auto">
+<button class="w-full bg-primary text-on-primary font-label-caps text-label-caps py-3 rounded-none uppercase flex items-center justify-center hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined mr-2 text-[18px]">download</span>
+                Export Report
+            </button>
+<ul class="mt-4 flex flex-col space-y-1">
+<li>
+<a class="flex items-center py-2 text-secondary font-body-sm hover:text-primary transition-colors" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-3 text-[18px]">settings</span>
+                        Settings
+                    </a>
+</li>
+<li>
+<a class="flex items-center py-2 text-secondary font-body-sm hover:text-primary transition-colors" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined mr-3 text-[18px]">help</span>
+                        Help Center
+                    </a>
+</li>
+</ul>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="flex-1 flex flex-col ml-[240px]">
+<!-- TopNavBar -->
+<header class="bg-surface-container-lowest text-primary font-body-sm fixed top-0 right-0 w-[calc(100%-240px)] z-30 h-row-height-standard border-b border-outline-variant flex justify-between items-center px-container-padding">
+<div class="flex items-center space-x-6">
+<h2 class="font-title-sm text-title-sm font-bold text-primary">Overseas Review Platform</h2>
+<nav class="hidden md:flex space-x-6">
+<span class="text-secondary font-body-sm flex items-center">
+<span class="material-symbols-outlined text-[16px] mr-1">lock</span>
+                        ReadOnly Mode Enabled
+                    </span>
+</nav>
+</div>
+<div class="flex items-center space-x-4">
+<button class="text-secondary hover:text-primary transition-all flex items-center font-label-caps text-label-caps uppercase tracking-wider">
+<span class="material-symbols-outlined mr-1 text-[16px]">language</span>
+                    EN
+                    <span class="material-symbols-outlined ml-0.5 text-[16px]">expand_more</span>
+</button>
+<div class="h-6 w-px bg-outline-variant"></div>
+<button class="text-secondary hover:text-primary transition-all p-1 flex items-center">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-6 w-px bg-outline-variant"></div>
+<button class="text-secondary hover:text-primary transition-all font-label-caps text-label-caps uppercase tracking-wider flex items-center">
+<span class="material-symbols-outlined mr-1 text-[16px]">calendar_today</span>
+                    Weekly Range
+                </button>
+<button class="bg-surface-container-lowest border border-primary text-primary px-4 py-1.5 font-label-caps text-label-caps uppercase hover:bg-surface-container transition-colors ml-2">
+                    Export
+                </button>
+<button class="text-secondary hover:text-primary transition-all ml-2 p-1 flex items-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Canvas -->
+<main class="flex-1 overflow-auto mt-row-height-standard p-container-padding bg-background relative flex">
+<!-- Table Container (Shrinks slightly to accommodate open drawer) -->
+<div class="flex-1 mr-[400px] transition-all duration-300">
+<div class="flex justify-between items-center mb-6">
+<div>
+<h2 class="font-headline-md text-headline-md text-primary mb-1">Collection Tasks</h2>
+<p class="font-body-sm text-body-sm text-secondary">Manage and monitor automated review extraction processes.</p>
+</div>
+<button class="bg-primary text-on-primary px-5 py-2 font-label-caps text-label-caps uppercase rounded-none hover:bg-primary-container transition-colors flex items-center shadow-sm">
+<span class="material-symbols-outlined mr-2 text-[18px]">add</span>
+                        Create New Task
+                    </button>
+</div>
+<!-- Metrics Overview -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+<div class="bg-surface-container-lowest border border-outline-variant p-4">
+<h3 class="font-label-caps text-label-caps text-secondary uppercase mb-2">Active Tasks</h3>
+<div class="font-display-lg text-display-lg text-primary">12</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4">
+<h3 class="font-label-caps text-label-caps text-secondary uppercase mb-2">Reviews Extracted (24h)</h3>
+<div class="font-display-lg text-display-lg text-primary">14,285</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4">
+<h3 class="font-label-caps text-label-caps text-secondary uppercase mb-2">Failed Runs</h3>
+<div class="font-display-lg text-display-lg text-error">3</div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant p-4">
+<h3 class="font-label-caps text-label-caps text-secondary uppercase mb-2">Success Rate</h3>
+<div class="font-display-lg text-display-lg text-primary">98.2%</div>
+</div>
+</div>
+<!-- High Density Table -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-none overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low border-b border-outline-variant">
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider">Task ID</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider">Platform/Geo</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider">Scope</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider">Mode</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider">Status</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider text-right">Extracted</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider">Timing</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-surface uppercase tracking-wider text-center">Action</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm">
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">TSK-8821</td>
+<td class="py-2 px-3">
+<div class="font-semibold text-primary">Google Maps</div>
+<div class="text-secondary text-[11px]">US, CA, UK</div>
+</td>
+<td class="py-2 px-3 text-secondary">All Active JDE</td>
+<td class="py-2 px-3 text-secondary">API (v2)</td>
+<td class="py-2 px-3">
+<span class="inline-flex items-center justify-center bg-primary text-on-primary font-label-caps text-[10px] px-2 py-0.5 uppercase tracking-wide w-auto max-w-full text-center">Success</span>
+</td>
+<td class="py-2 px-3 text-right">
+<div class="font-data-mono text-data-mono">4,120</div>
+<div class="text-secondary text-[11px] font-data-mono text-data-mono">0 failed</div>
+</td>
+<td class="py-2 px-3 text-secondary">
+<div>08:00 AM</div>
+<div class="text-[11px]">Today</div>
+</td>
+<td class="py-2 px-3 text-center">
+<button class="text-primary hover:text-secondary transition-colors" title="Export">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">TSK-8820</td>
+<td class="py-2 px-3">
+<div class="font-semibold text-primary">Yelp</div>
+<div class="text-secondary text-[11px]">US Only</div>
+</td>
+<td class="py-2 px-3 text-secondary">Top 50 Revenue</td>
+<td class="py-2 px-3 text-secondary">DOM Scraping</td>
+<td class="py-2 px-3">
+<span class="inline-flex items-center justify-center bg-surface-variant text-primary font-label-caps text-[10px] px-2 py-0.5 uppercase tracking-wide border border-outline-variant w-auto max-w-full text-center">Pending</span>
+</td>
+<td class="py-2 px-3 text-right">
+<div class="font-data-mono text-data-mono">-</div>
+</td>
+<td class="py-2 px-3 text-secondary">
+<div>Queued</div>
+</td>
+<td class="py-2 px-3 text-center">
+<button class="text-primary hover:text-secondary transition-colors" disabled="" title="Export">
+<span class="material-symbols-outlined text-[18px] opacity-30">download</span>
+</button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">TSK-8819</td>
+<td class="py-2 px-3">
+<div class="font-semibold text-primary">OpenRice</div>
+<div class="text-secondary text-[11px]">HK, MO</div>
+</td>
+<td class="py-2 px-3 text-secondary">Custom List (12)</td>
+<td class="py-2 px-3 text-secondary">API (v1)</td>
+<td class="py-2 px-3">
+<span class="inline-flex items-center justify-center bg-[#ff9800] text-primary font-label-caps text-[10px] px-2 py-0.5 uppercase tracking-wide w-auto max-w-full text-center">Partial</span>
+</td>
+<td class="py-2 px-3 text-right">
+<div class="font-data-mono text-data-mono">845</div>
+<div class="text-error text-[11px] font-data-mono text-data-mono">12 failed</div>
+</td>
+<td class="py-2 px-3 text-secondary">
+<div>04:30 AM</div>
+<div class="text-[11px]">Today</div>
+</td>
+<td class="py-2 px-3 text-center">
+<button class="text-primary hover:text-secondary transition-colors" title="Export">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">TSK-8818</td>
+<td class="py-2 px-3">
+<div class="font-semibold text-primary">Naver</div>
+<div class="text-secondary text-[11px]">KR Only</div>
+</td>
+<td class="py-2 px-3 text-secondary">All Active JDE</td>
+<td class="py-2 px-3 text-secondary">DOM Scraping</td>
+<td class="py-2 px-3">
+<span class="inline-flex items-center justify-center bg-error text-on-error font-label-caps text-[10px] px-2 py-0.5 uppercase tracking-wide w-auto max-w-full text-center">Failed</span>
+</td>
+<td class="py-2 px-3 text-right">
+<div class="font-data-mono text-data-mono">0</div>
+<div class="text-error text-[11px] font-data-mono text-data-mono">Auth Error</div>
+</td>
+<td class="py-2 px-3 text-secondary">
+<div>02:15 AM</div>
+<div class="text-[11px]">Today</div>
+</td>
+<td class="py-2 px-3 text-center">
+<button class="text-primary hover:text-secondary transition-colors" title="View Logs">
+<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+</button>
+</td>
+</tr>
+<tr class="border-b border-outline-variant hover:bg-surface-bright transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">TSK-8817</td>
+<td class="py-2 px-3">
+<div class="font-semibold text-primary">Google Maps</div>
+<div class="text-secondary text-[11px]">SG, MY</div>
+</td>
+<td class="py-2 px-3 text-secondary">All Active JDE</td>
+<td class="py-2 px-3 text-secondary">API (v2)</td>
+<td class="py-2 px-3">
+<span class="inline-flex items-center justify-center bg-primary text-on-primary font-label-caps text-[10px] px-2 py-0.5 uppercase tracking-wide w-auto max-w-full text-center">Success</span>
+</td>
+<td class="py-2 px-3 text-right">
+<div class="font-data-mono text-data-mono">1,204</div>
+<div class="text-secondary text-[11px] font-data-mono text-data-mono">0 failed</div>
+</td>
+<td class="py-2 px-3 text-secondary">
+<div>11:00 PM</div>
+<div class="text-[11px]">Yesterday</div>
+</td>
+<td class="py-2 px-3 text-center">
+<button class="text-primary hover:text-secondary transition-colors" title="Export">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Sidebar Drawer (New Task Form) - Open State -->
+<aside class="fixed right-0 top-row-height-standard h-[calc(100vh-48px)] w-[400px] bg-surface-container-lowest border-l border-outline-variant shadow-[-4px_0_10px_rgba(0,0,0,0.05)] z-40 flex flex-col transform translate-x-0 transition-transform duration-300">
+<div class="flex justify-between items-center px-6 py-4 border-b border-outline-variant bg-surface-container-low">
+<h2 class="font-title-sm text-title-sm font-bold text-primary">New Collection Task</h2>
+<button class="text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto px-6 py-6 space-y-8">
+<!-- Target Section -->
+<section>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase border-b border-outline-variant pb-2 mb-4">1. Target Definition</h3>
+<div class="space-y-4">
+<div>
+<label class="block font-label-caps text-label-caps text-primary mb-1 uppercase">Platform</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant text-primary font-body-sm focus:border-primary focus:ring-0 rounded-none p-2 min-h-[40px] appearance-none break-words whitespace-normal">
+<option>Google Maps</option>
+<option>Yelp</option>
+<option>OpenRice</option>
+<option>Naver</option>
+<option>TripAdvisor</option>
+</select>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-primary mb-1 uppercase">Country</label>
+<div class="grid grid-cols-3 sm:grid-cols-2 gap-2">
+<label class="flex items-start space-x-2 border border-outline-variant p-2 cursor-pointer hover:border-primary">
+<input checked="" class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">US</span>
+</label>
+<label class="flex items-start space-x-2 border border-outline-variant p-2 cursor-pointer hover:border-primary">
+<input checked="" class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">CA</span>
+</label>
+<label class="flex items-start space-x-2 border border-outline-variant p-2 cursor-pointer hover:border-primary">
+<input class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">UK</span>
+</label>
+<label class="flex items-start space-x-2 border border-outline-variant p-2 cursor-pointer hover:border-primary">
+<input class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">AU</span>
+</label>
+<label class="flex items-start space-x-2 border border-outline-variant p-2 cursor-pointer hover:border-primary">
+<input class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">SG</span>
+</label>
+<label class="flex items-start space-x-2 border border-outline-variant p-2 cursor-pointer hover:border-primary">
+<input class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">MY</span>
+</label>
+</div>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-primary mb-1 uppercase">Store Scope</label>
+<select class="w-full bg-surface-container-lowest border border-outline-variant text-primary font-body-sm focus:border-primary focus:ring-0 rounded-none p-2 min-h-[40px] appearance-none break-words whitespace-normal">
+<option>All Active Stores</option>
+<option>By JDE Code List</option>
+<option>By Store Name</option>
+<option>By Direct URL</option>
+</select>
+</div>
+</div>
+</section>
+<!-- Data Parameters Section -->
+<section>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase border-b border-outline-variant pb-2 mb-4">2. Data Parameters</h3>
+<div class="space-y-4">
+<div>
+<label class="block font-label-caps text-label-caps text-primary mb-1 uppercase">Date Range</label>
+<div class="flex border border-outline-variant">
+<button class="flex-1 py-2 bg-primary text-on-primary font-body-sm text-center break-words whitespace-normal">Last 7 Days</button>
+<button class="flex-1 py-2 bg-surface-container-lowest text-primary font-body-sm text-center hover:bg-surface-container transition-colors border-l border-outline-variant break-words whitespace-normal">Custom</button>
+</div>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-primary mb-2 uppercase">Field Extraction</label>
+<div class="space-y-2">
+<label class="flex items-start space-x-3">
+<input checked="" class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" disabled="" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">Rating (Required)</span>
+</label>
+<label class="flex items-start space-x-3">
+<input checked="" class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" disabled="" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">Comment Text (Required)</span>
+</label>
+<label class="flex items-start space-x-3">
+<input checked="" class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">Auto-Translation</span>
+</label>
+<label class="flex items-start space-x-3">
+<input checked="" class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">Image URLs</span>
+</label>
+<label class="flex items-start space-x-3">
+<input class="form-checkbox text-primary border-outline-variant rounded-none focus:ring-0 mt-0.5 flex-shrink-0" type="checkbox"/>
+<span class="font-body-sm text-primary break-words flex-1">Order ID (If available)</span>
+</label>
+</div>
+</div>
+</div>
+</section>
+<!-- Execution Section -->
+<section>
+<h3 class="font-label-caps text-label-caps text-secondary uppercase border-b border-outline-variant pb-2 mb-4">3. Execution</h3>
+<div class="space-y-4">
+<div class="bg-surface-container-low border border-outline-variant p-3 flex items-start space-x-3">
+<input checked="" class="form-radio text-primary border-outline-variant focus:ring-0 mt-0.5" disabled="" type="radio"/>
+<div>
+<span class="block font-body-sm font-semibold text-primary break-words">Read-Only Mode</span>
+<span class="block font-body-sm text-secondary text-[11px] leading-tight mt-1 break-words">Platform policy enforces read-only access for this account tier. Writes are disabled.</span>
+</div>
+</div>
+<div>
+<label class="block font-label-caps text-label-caps text-primary mb-2 uppercase">Run Method</label>
+<div class="grid grid-cols-1 gap-2">
+<label class="flex items-start space-x-3 border border-primary p-3 cursor-pointer bg-surface-container-lowest">
+<input checked="" class="form-radio text-primary border-outline-variant focus:ring-0 mt-0.5 flex-shrink-0" name="run_method" type="radio"/>
+<span class="font-body-sm text-primary font-semibold break-words flex-1">Immediate</span>
+</label>
+<label class="flex items-start space-x-3 border border-outline-variant p-3 cursor-pointer hover:border-primary transition-colors bg-surface-container-lowest">
+<input class="form-radio text-primary border-outline-variant focus:ring-0 mt-0.5 flex-shrink-0" name="run_method" type="radio"/>
+<span class="font-body-sm text-primary break-words flex-1">Scheduled</span>
+</label>
+<label class="flex items-start space-x-3 border border-outline-variant p-3 cursor-pointer hover:border-primary transition-colors bg-surface-container-lowest">
+<input class="form-radio text-primary border-outline-variant focus:ring-0 mt-0.5 flex-shrink-0" name="run_method" type="radio"/>
+<span class="font-body-sm text-primary break-words flex-1">Dry Run (Estimate limits)</span>
+</label>
+</div>
+</div>
+</div>
+</section>
+</div>
+<div class="p-6 border-t border-outline-variant bg-surface-container-lowest flex justify-end space-x-3">
+<button class="bg-surface-container-lowest border border-primary text-primary px-6 py-2 font-label-caps text-label-caps uppercase hover:bg-surface-container transition-colors">
+                        Cancel
+                    </button>
+<button class="bg-primary text-on-primary px-6 py-2 font-label-caps text-label-caps uppercase hover:bg-primary-container transition-colors shadow-none">
+                        Deploy Task
+                    </button>
+</div>
+</aside>
+</main>
+</div>
+
+<script defer src="/stitch-static/stitch_runtime.js?v=20260513e"></script>
+</body></html>
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,424 @@
+﻿<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Dashboard - Overseas Review Platform</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#616363",
+                        "primary": "#000000",
+                        "outline-variant": "#cfc4c5",
+                        "surface-container": "#eeeeee",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#dfe0e0",
+                        "primary-container": "#1b1b1b",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "background": "#f9f9f9",
+                        "inverse-on-surface": "#f1f1f1",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-surface": "#1b1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-container": "#848484",
+                        "on-background": "#1b1b1b",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#4c4546",
+                        "on-error-container": "#93000a",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "on-primary-fixed-variant": "#474747",
+                        "inverse-surface": "#303030",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed-dim": "#c6c6c6",
+                        "on-tertiary-fixed": "#1b1b1b",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#1b1b1b",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "outline": "#7e7576",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#000000",
+                        "on-primary-container": "#848484",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "primary-fixed-dim": "#c6c6c6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "row-height-standard": "48px",
+                        "gutter": "16px",
+                        "base": "4px",
+                        "row-height-dense": "32px",
+                        "container-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "title-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "title-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; }
+        .table-row-divider { border-bottom: 1px solid #E0E0E0; }
+        .table-row-divider:last-child { border-bottom: none; }
+    </style>
+<link href="/stitch-static/stitch_runtime.css?v=20260512q" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-background font-body-md h-screen flex overflow-hidden">
+<!-- SideNavBar -->
+<nav class="bg-surface-container-lowest dark:bg-surface-container-lowest border-r border-outline-variant dark:border-outline-variant fixed left-0 top-0 h-full w-[240px] z-40 flex flex-col h-screen py-gutter">
+<div class="px-container-padding mb-8">
+<h1 class="font-display-lg text-display-lg font-bold tracking-tighter text-primary dark:text-primary" data-i18n="brand_name">HEYTEA</h1>
+<p class="font-body-sm text-body-sm text-secondary mt-1" data-i18n="app_subtitle">Overseas Review</p>
+</div>
+<div class="flex-1 overflow-y-auto px-gutter flex flex-col gap-base">
+<a class="flex items-center gap-3 px-4 py-3 text-primary dark:text-primary font-bold bg-surface-container dark:bg-surface-container-highest border-l-4 border-primary" href="/stitch-static/dashboard_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span data-i18n="nav_dashboard">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200 ml-[4px]" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]">assignment_turned_in</span>
+<span data-i18n="nav_collection_tasks">Collection Tasks</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200 ml-[4px]" href="/stitch-static/store_coverage_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]">storefront</span>
+<span data-i18n="nav_store_coverage">Store Coverage</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200 ml-[4px]" href="/stitch-static/review_workbench_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]">rate_review</span>
+<span data-i18n="nav_review_workbench">Review Workbench</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200 ml-[4px]" href="/stitch-static/platform_matrix_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]">grid_view</span>
+<span data-i18n="nav_platform_matrix">Platform Matrix</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200 ml-[4px]" href="/stitch-static/quality_report_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+<span data-i18n="nav_quality_report">Quality Report</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200 ml-[4px]" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[20px]">security</span>
+<span data-i18n="nav_safety_audit">Safety &amp; Audit</span>
+</a>
+</div>
+<div class="px-container-padding mt-auto pt-4 border-t border-outline-variant dark:border-outline-variant flex flex-col gap-base">
+<button class="w-full bg-primary text-on-primary py-2 px-4 rounded-none font-body-md font-medium text-center" data-i18n="action_export_report">Export Report</button>
+<div class="flex flex-col mt-4 gap-2">
+<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:text-primary text-body-sm" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[18px]">settings</span>
+<span data-i18n="nav_settings">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-secondary hover:text-primary text-body-sm" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined text-[18px]">help</span>
+<span data-i18n="nav_help_center">Help Center</span>
+</a>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<div class="ml-[240px] flex-1 flex flex-col h-screen overflow-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface-container-lowest dark:bg-surface-container-lowest border-b border-outline-variant dark:border-outline-variant fixed top-0 right-0 w-[calc(100%-240px)] z-50 h-row-height-standard flex justify-between items-center px-container-padding">
+<div class="flex items-center gap-4">
+<h2 class="font-title-sm text-title-sm font-bold text-primary dark:text-primary" data-i18n="header_title">Overseas Review Platform</h2>
+<div class="h-4 w-px bg-outline-variant"></div>
+<span class="font-body-sm text-body-sm text-on-secondary-container" data-i18n="header_date_range">This Week (2023-10-01 to 2023-10-07)</span>
+</div>
+<div class="flex items-center gap-6">
+<span class="font-label-caps text-label-caps bg-surface-container px-2 py-1 uppercase text-error font-bold tracking-widest border border-error" data-i18n="status_readonly">ReadOnly Mode Enabled</span>
+<div class="flex items-center gap-2">
+<button class="bg-surface-container-lowest border border-primary px-3 py-1 text-primary font-body-sm hover:bg-surface-container-low transition-colors" data-i18n="action_weekly_range">Weekly Range</button>
+<button class="bg-primary text-on-primary px-4 py-1 font-body-sm border border-primary hover:opacity-90 transition-opacity" data-i18n="action_export">Export</button>
+</div>
+<div class="flex items-center gap-4 border-l border-outline-variant pl-4">
+<div class="relative group">
+<button class="flex items-center gap-1 text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">language</span>
+<span class="font-body-sm text-body-sm font-medium">EN</span>
+<span class="material-symbols-outlined text-[16px]">arrow_drop_down</span>
+</button>
+<div class="absolute right-0 mt-2 w-32 bg-surface-container-lowest border border-outline-variant rounded shadow-lg hidden group-hover:block z-50">
+<a class="block px-4 py-2 text-body-sm hover:bg-surface-container text-primary" href="#">English</a>
+<a class="block px-4 py-2 text-body-sm hover:bg-surface-container text-primary" href="#">中文 (简体)</a>
+</div>
+</div>
+<button class="text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[20px]">notifications</span>
+</button>
+<button class="text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-[24px]">account_circle</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Scrollable Canvas -->
+<main class="flex-1 overflow-y-auto mt-row-height-standard p-container-padding bg-background">
+<div class="max-w-[1440px] mx-auto space-y-6">
+<!-- Metric Cards Row -->
+<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-gutter">
+<!-- Card 1 -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-secondary-container uppercase break-words" data-i18n="metric_weekly_reviews">Weekly Reviews</span>
+<div class="font-display-lg text-display-lg text-primary mt-2">203</div>
+</div>
+<!-- Card 2 (Highlighted) -->
+<div class="bg-surface-container-lowest border border-error p-4 flex flex-col justify-between relative overflow-hidden">
+<div class="absolute top-0 right-0 w-2 h-full bg-error"></div>
+<span class="font-label-caps text-label-caps text-error uppercase break-words" data-i18n="metric_negative_reviews">Negative Reviews</span>
+<div class="font-display-lg text-display-lg text-error mt-2">28</div>
+</div>
+<!-- Card 3 -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-secondary-container uppercase break-words" data-i18n="metric_low_rating_orders">Low-Rating Orders</span>
+<div class="font-display-lg text-display-lg text-primary mt-2">17</div>
+</div>
+<!-- Card 4 -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-secondary-container uppercase break-words" data-i18n="metric_reviews_with_images">Reviews With Images</span>
+<div class="font-display-lg text-display-lg text-primary mt-2">36</div>
+</div>
+<!-- Card 5 -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-on-secondary-container uppercase break-words" data-i18n="metric_translated_reviews">Translated Reviews</span>
+<div class="font-display-lg text-display-lg text-primary mt-2">142</div>
+</div>
+<!-- Card 6 -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] p-4 flex flex-col justify-between">
+<span class="font-label-caps text-label-caps text-error uppercase break-words" data-i18n="metric_failed_stores">Failed Stores</span>
+<div class="font-display-lg text-display-lg text-error mt-2">3</div>
+</div>
+</div>
+<!-- Middle Row: Chart & Platform Status -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-gutter">
+<!-- Left: Chart Area (Placeholder for actual chart) -->
+<div class="lg:col-span-2 bg-surface-container-lowest border border-[#E0E0E0] p-container-padding flex flex-col">
+<div class="flex flex-col sm:flex-row justify-between sm:items-center mb-6 border-b border-outline-variant pb-4 gap-4">
+<h3 class="font-title-sm text-title-sm text-primary" data-i18n="chart_title_volume_vs_negative">7-Day Volume vs Negative Rate</h3>
+<div class="flex flex-wrap gap-4">
+<div class="flex items-center gap-2"><div class="w-3 h-3 bg-primary"></div><span class="font-label-caps text-label-caps text-on-secondary-container break-words" data-i18n="chart_legend_volume">Volume</span></div>
+<div class="flex items-center gap-2"><div class="w-3 h-3 bg-error"></div><span class="font-label-caps text-label-caps text-on-secondary-container break-words" data-i18n="chart_legend_negative_rate">Negative Rate (%)</span></div>
+</div>
+</div>
+<div class="flex-1 bg-surface flex items-center justify-center border border-dashed border-outline-variant min-h-[300px]">
+<span class="font-data-mono text-data-mono text-on-secondary-container text-center px-4 break-words" data-i18n="chart_placeholder_text">Chart visualization area. Requires JS charting library.</span>
+</div>
+</div>
+<!-- Right: Platform Status -->
+<div class="lg:col-span-1 bg-surface-container-lowest border border-[#E0E0E0] p-container-padding flex flex-col">
+<h3 class="font-title-sm text-title-sm text-primary border-b border-outline-variant pb-4 mb-4" data-i18n="platform_status_title">Platform Connection Status</h3>
+<div class="flex flex-col gap-3 flex-1 overflow-y-auto">
+<!-- Google Maps -->
+<div class="flex justify-between items-center p-3 border border-[#E0E0E0] bg-surface">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_google_maps">Google Maps</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-primary text-on-primary px-2 py-[2px]" data-i18n="status_success">Success</span>
+</div>
+</div>
+<!-- Hungry Panda -->
+<div class="flex justify-between items-center p-3 border border-[#E0E0E0] bg-surface">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_hungry_panda">Hungry Panda</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-primary text-on-primary px-2 py-[2px]" data-i18n="status_success">Success</span>
+</div>
+</div>
+<!-- Fantuan -->
+<div class="flex justify-between items-center p-3 border border-error bg-[#FFF5F5]">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_fantuan">Fantuan</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-error text-on-primary px-2 py-[2px]" data-i18n="status_failed">Failed</span>
+</div>
+</div>
+<!-- GrabFood -->
+<div class="flex justify-between items-center p-3 border border-[#E0E0E0] bg-surface">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_grabfood">GrabFood</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-[#E0E0E0] text-primary px-2 py-[2px]" data-i18n="status_pending">Pending</span>
+</div>
+</div>
+<!-- KeeTa -->
+<div class="flex justify-between items-center p-3 border border-[#E0E0E0] bg-surface">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_keeta">KeeTa</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-primary text-on-primary px-2 py-[2px]" data-i18n="status_success">Success</span>
+</div>
+</div>
+<!-- OpenRice -->
+<div class="flex justify-between items-center p-3 border border-[#FF9800] bg-[#FFF8E1]">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_openrice">OpenRice</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-[#FF9800] text-primary px-2 py-[2px]" data-i18n="status_partial">Partial</span>
+</div>
+</div>
+<!-- Mfood -->
+<div class="flex justify-between items-center p-3 border border-[#E0E0E0] bg-surface">
+<span class="font-body-sm text-body-sm text-primary font-medium" data-i18n="platform_mfood">Mfood</span>
+<div class="flex items-center gap-2">
+<span class="font-label-caps text-label-caps uppercase bg-primary text-on-primary px-2 py-[2px]" data-i18n="status_success">Success</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Row: Matrix & Risk Reviews -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-gutter pb-8">
+<!-- Country x Platform Matrix -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] flex flex-col">
+<div class="p-4 bg-[#F5F5F5] border-b border-[#E0E0E0]">
+<h3 class="font-title-sm text-title-sm text-primary" data-i18n="matrix_title">Coverage Matrix</h3>
+</div>
+<div class="overflow-x-auto p-4">
+<table class="w-full text-left border-collapse min-w-[400px]">
+<thead>
+<tr>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-secondary-container uppercase border-b border-[#E0E0E0]" data-i18n="matrix_col_region">Region</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-secondary-container uppercase border-b border-[#E0E0E0]" data-i18n="matrix_col_google">Google</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-secondary-container uppercase border-b border-[#E0E0E0]" data-i18n="matrix_col_grab">Grab</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-on-secondary-container uppercase border-b border-[#E0E0E0]" data-i18n="matrix_col_panda">Panda</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm">
+<tr class="table-row-divider">
+<td class="py-2 px-3 font-medium" data-i18n="region_singapore">Singapore</td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-primary border border-primary"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-primary border border-primary"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-[#E0E0E0] border border-[#BDBDBD]"></span></td>
+</tr>
+<tr class="table-row-divider">
+<td class="py-2 px-3 font-medium" data-i18n="region_malaysia">Malaysia</td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-primary border border-primary"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-error border border-error"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-primary border border-primary"></span></td>
+</tr>
+<tr class="table-row-divider">
+<td class="py-2 px-3 font-medium" data-i18n="region_uk">UK</td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-primary border border-primary"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-[#F5F5F5] border border-[#E0E0E0]"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-[#FF9800] border border-[#FF9800]"></span></td>
+</tr>
+<tr class="table-row-divider">
+<td class="py-2 px-3 font-medium" data-i18n="region_usa">USA</td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-[#FF9800] border border-[#FF9800]"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-[#F5F5F5] border border-[#E0E0E0]"></span></td>
+<td class="py-2 px-3"><span class="w-3 h-3 inline-block bg-[#F5F5F5] border border-[#E0E0E0]"></span></td>
+</tr>
+</tbody>
+</table>
+<div class="mt-4 flex flex-wrap gap-4 text-label-caps font-label-caps text-on-secondary-container">
+<div class="flex items-center gap-1"><span class="w-2 h-2 bg-primary"></span> <span data-i18n="legend_active">Active</span></div>
+<div class="flex items-center gap-1"><span class="w-2 h-2 bg-error"></span> <span data-i18n="legend_failed">Failed</span></div>
+<div class="flex items-center gap-1"><span class="w-2 h-2 bg-[#FF9800]"></span> <span data-i18n="legend_partial">Partial</span></div>
+<div class="flex items-center gap-1"><span class="w-2 h-2 bg-[#E0E0E0]"></span> <span data-i18n="legend_pending_na">Pending/N/A</span></div>
+</div>
+</div>
+</div>
+<!-- Latest Risk Reviews -->
+<div class="bg-surface-container-lowest border border-[#E0E0E0] flex flex-col">
+<div class="p-4 bg-[#F5F5F5] border-b border-[#E0E0E0] flex justify-between items-center gap-4">
+<h3 class="font-title-sm text-title-sm text-primary" data-i18n="exceptions_title">High-Risk Exceptions</h3>
+<button class="font-body-sm text-body-sm text-primary underline hover:text-secondary whitespace-nowrap" data-i18n="action_view_all">View All</button>
+</div>
+<div class="flex flex-col">
+<!-- Review 1 -->
+<div class="p-4 border-b border-[#E0E0E0] hover:bg-surface transition-colors cursor-pointer border-l-4 border-l-error">
+<div class="flex justify-between items-start mb-2 gap-2">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-caps text-label-caps bg-primary text-on-primary px-1 whitespace-nowrap" data-i18n="review_store_sg_orchard">SG-Orchard</span>
+<span class="font-data-mono text-data-mono text-secondary whitespace-nowrap" data-i18n="review_platform_google_maps">Google Maps</span>
+</div>
+<div class="font-data-mono text-data-mono text-error font-bold text-[16px] whitespace-nowrap">★☆☆☆☆</div>
+</div>
+<p class="font-body-sm text-body-sm text-primary mb-2 line-clamp-2" data-i18n="review_text_1">"Found a hair in my drink, completely unacceptable. Tried to call the store but no one answered."</p>
+<div class="flex flex-wrap gap-2">
+<span class="font-label-caps text-label-caps text-error bg-error-container px-2 py-0.5 border border-error whitespace-nowrap" data-i18n="tag_hygiene">Hygiene</span>
+<span class="font-label-caps text-label-caps text-on-secondary-container bg-surface-container-high px-2 py-0.5 border border-[#E0E0E0] whitespace-nowrap" data-i18n="tag_service">Service</span>
+</div>
+</div>
+<!-- Review 2 -->
+<div class="p-4 border-b border-[#E0E0E0] hover:bg-surface transition-colors cursor-pointer border-l-4 border-l-[#FF9800]">
+<div class="flex justify-between items-start mb-2 gap-2">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-caps text-label-caps bg-primary text-on-primary px-1 whitespace-nowrap" data-i18n="review_store_uk_soho">UK-Soho</span>
+<span class="font-data-mono text-data-mono text-secondary whitespace-nowrap" data-i18n="review_platform_hungry_panda">HungryPanda</span>
+</div>
+<div class="font-data-mono text-data-mono text-[#FF9800] font-bold text-[16px] whitespace-nowrap">★★☆☆☆</div>
+</div>
+<p class="font-body-sm text-body-sm text-primary mb-2 line-clamp-2" data-i18n="review_text_2">"Delivery took over 2 hours. Drink was warm when it arrived. Taste is okay but very disappointed with speed."</p>
+<div class="flex flex-wrap gap-2">
+<span class="font-label-caps text-label-caps text-primary bg-[#FFCC80] px-2 py-0.5 border border-[#FF9800] whitespace-nowrap" data-i18n="tag_delivery_time">Delivery Time</span>
+</div>
+</div>
+<!-- Review 3 -->
+<div class="p-4 hover:bg-surface transition-colors cursor-pointer border-l-4 border-l-error">
+<div class="flex justify-between items-start mb-2 gap-2">
+<div class="flex flex-wrap items-center gap-2">
+<span class="font-label-caps text-label-caps bg-primary text-on-primary px-1 whitespace-nowrap" data-i18n="review_store_my_klcc">MY-KLCC</span>
+<span class="font-data-mono text-data-mono text-secondary whitespace-nowrap" data-i18n="review_platform_grabfood">GrabFood</span>
+</div>
+<div class="font-data-mono text-data-mono text-error font-bold text-[16px] whitespace-nowrap">★☆☆☆☆</div>
+</div>
+<p class="font-body-sm text-body-sm text-primary mb-2 line-clamp-2" data-i18n="review_text_3">"Staff was incredibly rude when I asked about my order status. Cup lid was loose and spilled everywhere."</p>
+<div class="flex flex-wrap gap-2">
+<span class="font-label-caps text-label-caps text-error bg-error-container px-2 py-0.5 border border-error whitespace-nowrap" data-i18n="tag_attitude">Attitude</span>
+<span class="font-label-caps text-label-caps text-error bg-error-container px-2 py-0.5 border border-error whitespace-nowrap" data-i18n="tag_packaging">Packaging</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+
+<script defer src="/stitch-static/stitch_runtime.js?v=20260513e"></script>
+</body></html>
+
+
+
+
+
+
+
+
+
+
+

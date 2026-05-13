@@ -1,0 +1,21 @@
+{
+  "platform": "dianping",
+  "country": "",
+  "stores": "all",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 120,
+  "mode": "dom",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_dianping_global_last7"
+  },
+  "options": {
+    "browser_channel": "msedge",
+    "max_pages_per_store": 6,
+    "max_stores": 0,
+    "headless": false
+  }
+}

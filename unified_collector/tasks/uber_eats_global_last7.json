@@ -1,0 +1,22 @@
+{
+  "platform": "uber_eats",
+  "account": "default",
+  "country": "",
+  "stores": "all",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 120,
+  "mode": "auto",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_uber_eats_global_last7"
+  },
+  "options": {
+    "browser_channel": "msedge",
+    "manual_login": true,
+    "max_stores": 0,
+    "headless": false
+  }
+}

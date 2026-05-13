@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HEYTEA 登录入口</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f1012;
+      --panel: rgba(17, 18, 20, 0.74);
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #f4f4f4;
+      --muted: #b7bcc4;
+      --accent: #9bd6ff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+    }
+    body { background: var(--bg); overflow: hidden; }
+    .bg {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(7, 8, 10, 0.66), rgba(7, 8, 10, 0.78)),
+        url('./screen.png');
+      background-size: cover;
+      background-position: center;
+      filter: saturate(1.1);
+      transform: scale(1.04);
+      animation: bgZoom 6s ease-out forwards;
+    }
+    @keyframes bgZoom {
+      from { transform: scale(1.08); }
+      to { transform: scale(1.02); }
+    }
+    .wrap {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      min-height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 28px;
+    }
+    .card {
+      width: min(520px, 96vw);
+      border: 1px solid var(--border);
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 28px 26px 20px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.42);
+      opacity: 0;
+      transform: translateY(10px);
+      animation: cardIn .8s ease forwards .2s;
+    }
+    @keyframes cardIn {
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .badge {
+      font-size: 12px;
+      letter-spacing: .04em;
+      color: #d6dbe5;
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .lang-toggle {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      padding: 5px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .title {
+      margin: 0 0 4px;
+      font-weight: 800;
+      font-size: 34px;
+      letter-spacing: .03em;
+      animation: logoPulse 2.8s ease-in-out infinite;
+      transform-origin: center;
+    }
+    @keyframes logoPulse {
+      0%, 100% { text-shadow: 0 0 0 rgba(155, 214, 255, 0); }
+      50% { text-shadow: 0 0 20px rgba(155, 214, 255, 0.35); }
+    }
+    .subtitle {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .notice {
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      border-left: 3px solid var(--accent);
+      padding: 10px 12px;
+      border-radius: 6px;
+      color: #dde3eb;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+    .field { margin-bottom: 12px; }
+    .label {
+      display: block;
+      font-size: 12px;
+      letter-spacing: .05em;
+      color: #c8ced9;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text);
+      height: 42px;
+      border-radius: 8px;
+      padding: 0 12px;
+      outline: none;
+      transition: border-color .2s ease;
+      font-size: 14px;
+    }
+    input:focus { border-color: #ffffff; }
+    .actions {
+      display: grid;
+      gap: 10px;
+      margin-top: 16px;
+    }
+    .btn {
+      border: none;
+      border-radius: 8px;
+      height: 42px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: #ffffff;
+      color: #111217;
+    }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .meta {
+      margin-top: 14px;
+      color: #aeb5c1;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg"></div>
+  <div class="wrap">
+    <section class="card">
+      <div class="top">
+        <span class="badge" data-i18n="readonly">只读采集模式</span>
+        <button type="button" class="lang-toggle" id="lang-toggle">EN</button>
+      </div>
+      <h1 class="title">HEYTEA</h1>
+      <p class="subtitle" data-i18n="subtitle">全球评论采集控制台登录入口</p>
+
+      <div class="notice" data-i18n="notice">
+        当前入口仅支持读取、筛选、导出，禁止回复/保存/删除等写操作。
+      </div>
+
+      <form id="login-form">
+        <div class="field">
+          <label class="label" for="uid" data-i18n="account">账号 / 邮箱</label>
+          <input id="uid" type="text" placeholder="请输入账号" autocomplete="off">
+        </div>
+        <div class="field">
+          <label class="label" for="pwd" data-i18n="password">访问密钥</label>
+          <input id="pwd" type="password" placeholder="请输入密码" autocomplete="off">
+        </div>
+
+        <div class="actions">
+          <button class="btn btn-primary" type="submit" data-i18n="enter">进入控制台</button>
+          <button class="btn btn-secondary" id="skip-btn" type="button" data-i18n="skip">直接进入（演示）</button>
+        </div>
+      </form>
+
+      <div class="meta" data-i18n="meta">
+        登录完成后将跳转至 Dashboard，并保留任务上下文与监控状态。
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const I18N = {
+      zh: {
+        readonly: '只读采集模式',
+        subtitle: '全球评论采集控制台登录入口',
+        notice: '当前入口仅支持读取、筛选、导出，禁止回复/保存/删除等写操作。',
+        account: '账号 / 邮箱',
+        password: '访问密钥',
+        enter: '进入控制台',
+        skip: '直接进入（演示）',
+        meta: '登录完成后将跳转至 Dashboard，并保留任务上下文与监控状态。'
+      },
+      en: {
+        readonly: 'Read-only Collection Mode',
+        subtitle: 'Global Review Collection Console',
+        notice: 'This entry only supports read/filter/export and blocks reply/save/delete actions.',
+        account: 'Account / Email',
+        password: 'Access Key',
+        enter: 'Enter Console',
+        skip: 'Skip (Demo)',
+        meta: 'After login, you will be redirected to Dashboard with task/monitor context preserved.'
+      }
+    };
+
+    const langToggle = document.getElementById('lang-toggle');
+    let lang = localStorage.getItem('heytea_lang') || 'zh';
+    if (!['zh', 'en'].includes(lang)) lang = 'zh';
+
+    function applyLanguage() {
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.querySelectorAll('[data-i18n]').forEach(node => {
+        const key = node.dataset.i18n;
+        const text = I18N[lang]?.[key];
+        if (text) node.textContent = text;
+      });
+      document.getElementById('uid').placeholder = lang === 'zh' ? '请输入账号' : 'Enter account';
+      document.getElementById('pwd').placeholder = lang === 'zh' ? '请输入密码' : 'Enter password';
+      langToggle.textContent = lang === 'zh' ? 'EN' : '中文';
+    }
+
+    function goDashboard() {
+      sessionStorage.setItem('heytea_login_visited', '1');
+      location.href = '/stitch-static/dashboard_global/code.html';
+    }
+
+    langToggle.addEventListener('click', () => {
+      lang = lang === 'zh' ? 'en' : 'zh';
+      localStorage.setItem('heytea_lang', lang);
+      applyLanguage();
+    });
+
+    document.getElementById('login-form').addEventListener('submit', event => {
+      event.preventDefault();
+      goDashboard();
+    });
+    document.getElementById('skip-btn').addEventListener('click', goDashboard);
+
+    applyLanguage();
+  </script>
+</body>
+</html>

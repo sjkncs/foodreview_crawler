@@ -1,0 +1,450 @@
+﻿<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Store Coverage - Overseas Review Platform</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration (Provided) -->
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-container": "#616363",
+                        "primary": "#000000",
+                        "outline-variant": "#cfc4c5",
+                        "surface-container": "#eeeeee",
+                        "surface-container-highest": "#e2e2e2",
+                        "error": "#ba1a1a",
+                        "secondary-container": "#dfe0e0",
+                        "primary-container": "#1b1b1b",
+                        "secondary-fixed": "#e2e2e2",
+                        "surface-container-lowest": "#ffffff",
+                        "inverse-primary": "#c6c6c6",
+                        "background": "#f9f9f9",
+                        "inverse-on-surface": "#f1f1f1",
+                        "surface-variant": "#e2e2e2",
+                        "on-tertiary-fixed-variant": "#474747",
+                        "on-secondary-fixed-variant": "#454747",
+                        "on-surface": "#1b1b1b",
+                        "primary-fixed": "#e2e2e2",
+                        "on-tertiary-container": "#848484",
+                        "on-background": "#1b1b1b",
+                        "on-error": "#ffffff",
+                        "on-surface-variant": "#4c4546",
+                        "on-error-container": "#93000a",
+                        "surface-tint": "#5e5e5e",
+                        "surface-container-low": "#f3f3f3",
+                        "on-primary-fixed": "#1b1b1b",
+                        "on-secondary-fixed": "#1a1c1c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "surface": "#f9f9f9",
+                        "on-primary-fixed-variant": "#474747",
+                        "inverse-surface": "#303030",
+                        "secondary": "#5d5f5f",
+                        "tertiary-fixed-dim": "#c6c6c6",
+                        "on-tertiary-fixed": "#1b1b1b",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-bright": "#f9f9f9",
+                        "on-secondary": "#ffffff",
+                        "tertiary-container": "#1b1b1b",
+                        "secondary-fixed-dim": "#c6c6c7",
+                        "outline": "#7e7576",
+                        "error-container": "#ffdad6",
+                        "tertiary": "#000000",
+                        "on-primary-container": "#848484",
+                        "surface-container-high": "#e8e8e8",
+                        "surface-dim": "#dadada",
+                        "primary-fixed-dim": "#c6c6c6"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "row-height-standard": "48px",
+                        "gutter": "16px",
+                        "base": "4px",
+                        "row-height-dense": "32px",
+                        "container-padding": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Inter"],
+                        "display-lg": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "title-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "data-mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["20px", {"lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "display-lg": ["30px", {"lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-caps": ["11px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "title-sm": ["16px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "body-sm": ["13px", {"lineHeight": "18px", "fontWeight": "400"}],
+                        "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "data-mono": ["13px", {"lineHeight": "18px", "fontWeight": "500"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        /* Custom scrollbar for B2B feel */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cfc4c5; border-radius: 0px; }
+        ::-webkit-scrollbar-thumb:hover { background: #7e7576; }
+    </style>
+<link href="/stitch-static/stitch_runtime.css?v=20260512s" rel="stylesheet"/>
+</head>
+<body class="bg-background text-on-background min-h-screen flex antialiased">
+<!-- JSON Component: SideNavBar -->
+<nav class="fixed left-0 top-0 h-full w-[240px] z-40 bg-surface-container-lowest dark:bg-surface-container-lowest border-r border-outline-variant dark:border-outline-variant flex flex-col h-screen py-gutter">
+<div class="px-container-padding pb-6 mb-6 border-b border-outline-variant">
+<h1 class="font-display-lg text-display-lg font-bold tracking-tighter text-primary dark:text-primary">HEYTEA</h1>
+<p class="font-body-sm text-body-sm text-secondary mt-1">Overseas Review</p>
+</div>
+<div class="flex-1 overflow-y-auto px-4 space-y-1">
+<!-- Inactive Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/dashboard_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">dashboard</span>
+<span>Dashboard</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">assignment_turned_in</span>
+<span>Collection Tasks</span>
+</a>
+<!-- Active Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-primary dark:text-primary font-bold bg-surface-container dark:bg-surface-container-highest border-l-4 border-primary opacity-90 transition-opacity duration-150" href="/stitch-static/store_coverage_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">storefront</span>
+<span>Store Coverage</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/review_workbench_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">rate_review</span>
+<span>Review Workbench</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/platform_matrix_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">grid_view</span>
+<span>Platform Matrix</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/quality_report_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">analytics</span>
+<span>Quality Report</span>
+</a>
+<!-- Inactive Tab -->
+<a class="flex items-center gap-3 px-3 py-2 text-secondary dark:text-secondary-fixed-dim font-body-md hover:text-primary hover:bg-surface-container-high dark:hover:bg-surface-container-high transition-colors duration-200" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">security</span>
+<span>Safety &amp; Audit</span>
+</a>
+</div>
+<div class="px-container-padding pt-4 border-t border-outline-variant mt-auto space-y-1">
+<button class="w-full bg-surface-container-lowest border border-outline-variant text-primary font-body-sm text-body-sm py-2 mb-4 hover:border-primary transition-colors">Export Report</button>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary font-body-sm text-body-sm hover:text-primary transition-colors" href="/stitch-static/safety_audit_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">settings</span>
+<span>Settings</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2 text-secondary font-body-sm text-body-sm hover:text-primary transition-colors" href="/stitch-static/collection_tasks_global/code.html" target="_self">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">help</span>
+<span>Help Center</span>
+</a>
+</div>
+</nav>
+<!-- JSON Component: TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-240px)] z-50 h-row-height-standard bg-surface-container-lowest dark:bg-surface-container-lowest border-b border-outline-variant dark:border-outline-variant flex justify-between items-center px-container-padding ml-[240px]">
+<div class="flex items-center gap-4">
+<span class="font-title-sm text-title-sm font-bold text-primary dark:text-primary">Overseas Review Platform</span>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="flex items-center gap-2">
+<span class="font-body-sm text-body-sm text-secondary border border-outline-variant px-2 py-0.5 rounded-none bg-surface-container-low">ReadOnly Mode Enabled</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<span class="font-body-sm text-body-sm text-secondary">Weekly Range</span>
+<button class="font-body-sm text-body-sm bg-primary text-on-primary px-4 py-1.5 rounded-none hover:bg-surface-tint transition-colors">Export</button>
+<div class="h-4 w-px bg-outline-variant"></div>
+<div class="relative group">
+<button class="flex items-center gap-1 text-secondary hover:text-primary transition-colors h-8 px-2 font-body-sm text-body-sm">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0; font-size: 20px;">language</span>
+<span>EN</span>
+<span class="material-symbols-outlined" style="font-size: 16px;">arrow_drop_down</span>
+</button>
+<!-- Dropdown would go here -->
+</div>
+<button class="text-secondary hover:text-primary transition-colors flex items-center justify-center w-8 h-8">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">notifications</span>
+</button>
+<button class="text-secondary hover:text-primary transition-colors flex items-center justify-center w-8 h-8">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">account_circle</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-[240px] mt-row-height-standard w-full p-container-padding flex gap-container-padding h-[calc(100vh-48px)] overflow-hidden">
+<!-- Left Panel: High Density Data -->
+<section class="flex-1 flex flex-col min-w-0 bg-surface-container-lowest border border-outline-variant">
+<!-- Filter Bar -->
+<div class="p-4 border-b border-outline-variant bg-surface-container-lowest flex items-center justify-between gap-4 shrink-0 flex-wrap">
+<div class="flex items-center gap-3 w-full flex-wrap">
+<div class="relative flex-1 min-w-[160px]">
+<label class="absolute -top-2 left-2 bg-surface-container-lowest px-1 font-label-caps text-label-caps text-secondary truncate max-w-[90%]">COUNTRY</label>
+<select class="w-full bg-transparent border border-outline-variant rounded-none px-3 py-2 font-body-sm text-body-sm text-primary focus:border-primary focus:ring-0 appearance-none">
+<option>All Regions</option>
+<option>United Kingdom</option>
+<option>United States</option>
+<option>Singapore</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2 text-secondary pointer-events-none" style="font-size: 20px;">arrow_drop_down</span>
+</div>
+<div class="relative flex-1 min-w-[160px]">
+<label class="absolute -top-2 left-2 bg-surface-container-lowest px-1 font-label-caps text-label-caps text-secondary truncate max-w-[90%]">PLATFORM</label>
+<select class="w-full bg-transparent border border-outline-variant rounded-none px-3 py-2 font-body-sm text-body-sm text-primary focus:border-primary focus:ring-0 appearance-none">
+<option>All Platforms</option>
+<option>Google Maps</option>
+<option>HungryPanda</option>
+</select>
+<span class="material-symbols-outlined absolute right-2 top-2 text-secondary pointer-events-none" style="font-size: 20px;">arrow_drop_down</span>
+</div>
+<div class="relative flex-1 min-w-[140px]">
+<label class="absolute -top-2 left-2 bg-surface-container-lowest px-1 font-label-caps text-label-caps text-secondary truncate max-w-[90%]">JDE</label>
+<input class="w-full bg-transparent border border-outline-variant rounded-none px-3 py-2 font-data-mono text-data-mono text-primary focus:border-primary focus:ring-0 placeholder:text-outline-variant" placeholder="Search ID" type="text"/>
+</div>
+<div class="relative flex-1 min-w-[200px]">
+<label class="absolute -top-2 left-2 bg-surface-container-lowest px-1 font-label-caps text-label-caps text-secondary truncate max-w-[90%]">STORE NAME</label>
+<div class="flex items-center border border-outline-variant focus-within:border-primary">
+<span class="material-symbols-outlined pl-3 text-secondary" style="font-size: 18px;">search</span>
+<input class="w-full bg-transparent border-none rounded-none px-2 py-2 font-body-sm text-body-sm text-primary focus:ring-0 placeholder:text-outline-variant" placeholder="Search by name" type="text"/>
+</div>
+</div>
+</div>
+<button class="shrink-0 flex items-center justify-center w-10 h-10 border border-outline-variant text-secondary hover:bg-surface-container-low transition-colors ml-auto">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 0;">filter_list</span>
+</button>
+</div>
+<!-- High Density Table -->
+<div class="flex-1 overflow-auto bg-surface-container-lowest">
+<table class="w-full text-left border-collapse">
+<thead class="sticky top-0 bg-surface-container border-b border-outline-variant z-10">
+<tr>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold w-[80px]">JDE</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold min-w-[180px]">STORE NAME</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold w-[140px]">LOCATION</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold w-[120px] text-center">PLATFORMS</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold w-[100px] text-right">LAST SYNC</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold w-[80px] text-right">REVIEWS</th>
+<th class="py-2 px-3 font-label-caps text-label-caps text-secondary font-bold w-[120px]">STATUS</th>
+</tr>
+</thead>
+<tbody class="font-body-sm text-body-sm">
+<!-- Selected Row -->
+<tr class="border-b border-outline-variant bg-surface-container-low cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">82001</td>
+<td class="py-2 px-3 font-semibold text-primary">SOHO London Flagship</td>
+<td class="py-2 px-3 text-secondary">UK, London</td>
+<td class="py-2 px-3 flex justify-center gap-1">
+<div class="w-6 h-6 flex items-center justify-center bg-primary text-on-primary" title="Google Maps"><span class="material-symbols-outlined text-[14px]">pin_drop</span></div>
+<div class="w-6 h-6 flex items-center justify-center bg-primary text-on-primary" title="HungryPanda"><span class="material-symbols-outlined text-[14px]">takeout_dining</span></div>
+<div class="w-6 h-6 flex items-center justify-center bg-outline-variant text-surface-container-lowest" title="Fantuan - Not Covered"><span class="material-symbols-outlined text-[14px]">pedal_bike</span></div>
+</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono text-secondary">1h ago</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono text-primary">1,402</td>
+<td class="py-2 px-3">
+<span class="bg-primary text-on-primary font-label-caps text-[9px] px-2 py-0.5 uppercase tracking-wider">Covered</span>
+</td>
+</tr>
+<!-- Standard Rows -->
+<tr class="border-b border-outline-variant cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">82045</td>
+<td class="py-2 px-3 font-medium text-primary">Manchester Arndale</td>
+<td class="py-2 px-3 text-secondary">UK, Manchester</td>
+<td class="py-2 px-3 flex justify-center gap-1">
+<div class="w-6 h-6 flex items-center justify-center bg-primary text-on-primary" title="Google Maps"><span class="material-symbols-outlined text-[14px]">pin_drop</span></div>
+<div class="w-6 h-6 flex items-center justify-center bg-error text-on-error" title="HungryPanda - Error"><span class="material-symbols-outlined text-[14px]">takeout_dining</span></div>
+<div class="w-6 h-6 flex items-center justify-center bg-primary text-on-primary" title="Fantuan"><span class="material-symbols-outlined text-[14px]">pedal_bike</span></div>
+</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono text-secondary">3h ago</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono text-primary">854</td>
+<td class="py-2 px-3">
+<span class="bg-error text-on-error font-label-caps text-[9px] px-2 py-0.5 uppercase tracking-wider">Sync Error</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant cursor-pointer hover:bg-surface-container transition-colors">
+<td class="py-2 px-3 font-data-mono text-data-mono text-primary">83012</td>
+<td class="py-2 px-3 font-medium text-primary">NY Times Square</td>
+<td class="py-2 px-3 text-secondary">US, New York</td>
+<td class="py-2 px-3 flex justify-center gap-1">
+<div class="w-6 h-6 flex items-center justify-center bg-primary text-on-primary" title="Google Maps"><span class="material-symbols-outlined text-[14px]">pin_drop</span></div>
+<div class="w-6 h-6 flex items-center justify-center bg-outline-variant text-surface-container-lowest" title="HungryPanda - N/A"><span class="material-symbols-outlined text-[14px]">takeout_dining</span></div>
+<div class="w-6 h-6 flex items-center justify-center bg-outline-variant text-surface-container-lowest" title="Fantuan - N/A"><span class="material-symbols-outlined text-[14px]">pedal_bike</span></div>
+</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono text-secondary">10m ago</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono text-primary">3,205</td>
+<td class="py-2 px-3">
+<span class="bg-primary text-on-primary font-label-caps text-[9px] px-2 py-0.5 uppercase tracking-wider">Covered</span>
+</td>
+</tr>
+<tr class="border-b border-outline-variant cursor-pointer hover:bg-surface-container transition-colors text-secondary">
+<td class="py-2 px-3 font-data-mono text-data-mono text-secondary">84099</td>
+<td class="py-2 px-3 font-medium">Paris Le Marais</td>
+<td class="py-2 px-3">FR, Paris</td>
+<td class="py-2 px-3 flex justify-center gap-1">
+<div class="w-6 h-6 flex items-center justify-center bg-outline-variant text-surface-container-lowest" title="Pending"><span class="material-symbols-outlined text-[14px]">hourglass_empty</span></div>
+</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono">-</td>
+<td class="py-2 px-3 text-right font-data-mono text-data-mono">0</td>
+<td class="py-2 px-3">
+<span class="bg-surface-container-high text-on-surface font-label-caps text-[9px] px-2 py-0.5 uppercase tracking-wider border border-outline-variant">Pending Setup</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<!-- Table Footer / Pagination -->
+<div class="p-3 border-t border-outline-variant bg-surface-container flex items-center justify-between shrink-0 font-body-sm text-body-sm text-secondary">
+<span>Showing 1 to 4 of 128 Stores</span>
+<div class="flex items-center gap-2">
+<button class="w-8 h-8 flex items-center justify-center border border-outline-variant hover:border-primary transition-colors disabled:opacity-50"><span class="material-symbols-outlined" style="font-size: 18px;">chevron_left</span></button>
+<span class="font-data-mono text-primary">1 / 13</span>
+<button class="w-8 h-8 flex items-center justify-center border border-outline-variant hover:border-primary transition-colors text-primary"><span class="material-symbols-outlined" style="font-size: 18px;">chevron_right</span></button>
+</div>
+</div>
+</section>
+<!-- Right Panel: Bento Detail View -->
+<aside class="w-[380px] shrink-0 flex flex-col gap-4 overflow-y-auto pr-1 pb-1">
+<!-- Header Block -->
+<div class="bg-surface-container-lowest border border-outline-variant p-5 flex flex-col gap-2 relative shadow-[4px_4px_0px_0px_rgba(226,226,226,0.5)]">
+<button class="absolute top-4 right-4 text-secondary hover:text-primary transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-label-caps text-label-caps text-secondary bg-surface-container px-2 py-0.5 border border-outline-variant whitespace-nowrap">JDE 82001</span>
+<span class="bg-primary text-on-primary font-label-caps text-[9px] px-2 py-0.5 uppercase tracking-wider whitespace-nowrap">Active</span>
+</div>
+<h2 class="font-headline-md text-headline-md text-primary mt-1 break-words">SOHO London Flagship</h2>
+<div class="flex items-start gap-1 text-secondary font-body-sm text-body-sm">
+<span class="material-symbols-outlined shrink-0" style="font-size: 16px;">location_on</span>
+<span class="break-words">14A Shaftesbury Ave, London W1D 7EY, UK</span>
+</div>
+</div>
+<!-- Bento Grid: Capabilities & Links -->
+<div class="flex flex-col xl:flex-row gap-4">
+<!-- Capabilities Block -->
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant p-4 flex flex-col gap-3 min-w-[160px]">
+<h3 class="font-label-caps text-label-caps text-secondary border-b border-outline-variant pb-2 break-words">DATA CAPABILITIES</h3>
+<ul class="space-y-2 font-body-sm text-body-sm">
+<li class="flex items-center justify-between gap-2">
+<span class="text-secondary truncate">Reviews</span>
+<span class="material-symbols-outlined text-primary shrink-0" style="font-size: 16px;">check_circle</span>
+</li>
+<li class="flex items-center justify-between gap-2">
+<span class="text-secondary truncate">Photos</span>
+<span class="material-symbols-outlined text-primary shrink-0" style="font-size: 16px;">check_circle</span>
+</li>
+<li class="flex items-center justify-between gap-2">
+<span class="text-secondary truncate">Translation</span>
+<span class="material-symbols-outlined text-primary shrink-0" style="font-size: 16px;">check_circle</span>
+</li>
+<li class="flex items-center justify-between gap-2 opacity-50">
+<span class="text-secondary truncate">Order Details</span>
+<span class="material-symbols-outlined text-outline shrink-0" style="font-size: 16px;">cancel</span>
+</li>
+</ul>
+</div>
+<!-- Platform Links Block -->
+<div class="flex-1 bg-surface-container-lowest border border-outline-variant p-4 flex flex-col gap-3 min-w-[160px]">
+<h3 class="font-label-caps text-label-caps text-secondary border-b border-outline-variant pb-2 break-words">PLATFORM ENTRY</h3>
+<div class="space-y-2">
+<a class="group flex items-center justify-between p-2 border border-outline-variant hover:border-primary transition-colors bg-surface-container-low gap-2" href="#">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-primary shrink-0" style="font-size: 16px;">pin_drop</span>
+<span class="font-body-sm text-body-sm text-primary truncate">Google</span>
+</div>
+<span class="material-symbols-outlined text-secondary group-hover:text-primary transition-colors shrink-0" style="font-size: 14px;">open_in_new</span>
+</a>
+<a class="group flex items-center justify-between p-2 border border-outline-variant hover:border-primary transition-colors bg-surface-container-low gap-2" href="#">
+<div class="flex items-center gap-2 min-w-0">
+<span class="material-symbols-outlined text-primary shrink-0" style="font-size: 16px;">takeout_dining</span>
+<span class="font-body-sm text-body-sm text-primary truncate">H. Panda</span>
+</div>
+<span class="material-symbols-outlined text-secondary group-hover:text-primary transition-colors shrink-0" style="font-size: 14px;">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+<!-- 7-Day Summary Block -->
+<div class="bg-surface-container-lowest border border-outline-variant p-4 flex flex-col gap-4">
+<div class="flex items-center justify-between border-b border-outline-variant pb-2 gap-2 flex-wrap">
+<h3 class="font-label-caps text-label-caps text-secondary break-words">7-DAY REVIEW SUMMARY</h3>
+<span class="font-label-caps text-label-caps text-primary bg-surface-container px-2 border border-outline-variant whitespace-nowrap shrink-0">AUTO-SYNC ON</span>
+</div>
+<div class="flex flex-wrap gap-4 justify-between">
+<div class="flex flex-col gap-1 min-w-[120px]">
+<span class="font-body-sm text-body-sm text-secondary truncate">Total Ingestion</span>
+<span class="font-display-lg text-display-lg text-primary font-bold">142</span>
+</div>
+<div class="flex flex-col gap-1 min-w-[120px]">
+<span class="font-body-sm text-body-sm text-secondary truncate">Avg Rating</span>
+<div class="flex items-end gap-1">
+<span class="font-display-lg text-display-lg text-primary font-bold">4.8</span>
+<span class="font-body-sm text-body-sm text-secondary mb-1 whitespace-nowrap">/ 5.0</span>
+</div>
+</div>
+</div>
+<div class="mt-2 space-y-3">
+<div class="flex flex-col gap-1">
+<div class="flex items-center justify-between font-body-sm text-body-sm">
+<span class="text-secondary break-words">Sentiment Distribution</span>
+</div>
+<!-- Minimalist Bar Chart representation -->
+<div class="w-full h-2 bg-surface-container flex mt-1">
+<div class="h-full bg-primary" style="width: 85%;"></div>
+<div class="h-full bg-outline-variant" style="width: 10%;"></div>
+<div class="h-full bg-error" style="width: 5%;"></div>
+</div>
+<div class="flex flex-wrap justify-between font-label-caps text-[10px] text-secondary mt-1 gap-2">
+<span class="whitespace-nowrap">POSITIVE (85%)</span>
+<span class="whitespace-nowrap">MIXED (10%)</span>
+<span class="text-error whitespace-nowrap">NEGATIVE (5%)</span>
+</div>
+</div>
+</div>
+<button class="w-full mt-2 border border-primary text-primary font-body-sm text-body-sm py-2 px-4 hover:bg-primary hover:text-on-primary transition-colors flex items-center justify-center gap-2 text-center h-auto min-h-[40px]">
+<span class="material-symbols-outlined shrink-0" style="font-size: 16px;">manage_search</span>
+<span class="break-words">View Raw Reviews</span>
+</button>
+</div>
+</aside>
+</main>
+
+<script defer src="/stitch-static/stitch_runtime.js?v=20260513e"></script>
+</body></html>
+
+
+
+
+
+
+
+
+
+
+
+
