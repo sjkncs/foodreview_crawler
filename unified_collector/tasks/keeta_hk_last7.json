@@ -1,0 +1,21 @@
+{
+  "platform": "keeta",
+  "account": "hk",
+  "country": "香港",
+  "stores": "all",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 100,
+  "mode": "auto",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_keeta_hk_last7"
+  },
+  "options": {
+    "browser_channel": "msedge",
+    "max_pages": 5,
+    "headless": false
+  }
+}

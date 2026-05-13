@@ -1,0 +1,36 @@
+{
+  "name": "grabfood_reviews_poc",
+  "start_url": "https://merchant.grab.com/portal?source=mrc",
+  "goal": "在已登录 Grab Merchant Portal 中进入 Feedback -> Ratings and reviews，选择近 7 天，读取当前可见评论、订单内容和评论图片 URL；只读取，不回复、不提交。",
+  "profile_name": "grabfood_sg",
+  "max_steps": 18,
+  "headless": false,
+  "allowed_domains": [
+    "merchant.grab.com",
+    "weblogin.grab.com"
+  ],
+  "deny_actions": [
+    "\\bsubmit\\b",
+    "\\bsend\\b",
+    "\\bsave\\b",
+    "\\breply\\b",
+    "\\bdelete\\b",
+    "\\bconfirm\\b",
+    "提交",
+    "发送",
+    "保存",
+    "回复",
+    "删除",
+    "确认"
+  ],
+  "extraction_schema": {
+    "platform": "GrabFood",
+    "store": "门店名称",
+    "rating": "评分",
+    "review": "评论原文",
+    "customer": "顾客名称",
+    "review_time": "评论时间",
+    "ordered_items": "订单商品",
+    "image_urls": ["评论图片 URL"]
+  }
+}

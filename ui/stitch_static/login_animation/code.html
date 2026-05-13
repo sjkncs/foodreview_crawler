@@ -183,7 +183,7 @@
       <p class="subtitle" data-i18n="subtitle">全球评论采集控制台登录入口</p>
 
       <div class="notice" data-i18n="notice">
-        当前入口仅支持读取、筛选、导出，禁止回复/保存/删除等写操作。
+        当前入口仅执行读取、筛选、导出，不触发回复、保存、删除等写操作。
       </div>
 
       <form id="login-form">
@@ -203,7 +203,7 @@
       </form>
 
       <div class="meta" data-i18n="meta">
-        登录完成后将跳转至 Dashboard，并保留任务上下文与监控状态。
+        入口完成后将跳转到 Dashboard，并保留平台任务与监控状态。
       </div>
     </section>
   </div>
@@ -213,22 +213,28 @@
       zh: {
         readonly: '只读采集模式',
         subtitle: '全球评论采集控制台登录入口',
-        notice: '当前入口仅支持读取、筛选、导出，禁止回复/保存/删除等写操作。',
+        notice: '当前入口仅执行读取、筛选、导出，不触发回复、保存、删除等写操作。',
         account: '账号 / 邮箱',
         password: '访问密钥',
         enter: '进入控制台',
         skip: '直接进入（演示）',
-        meta: '登录完成后将跳转至 Dashboard，并保留任务上下文与监控状态。'
+        meta: '入口完成后将跳转到 Dashboard，并保留平台任务与监控状态。',
+        uid_ph: '请输入账号',
+        pwd_ph: '请输入密码',
+        toggle: 'EN',
       },
       en: {
         readonly: 'Read-only Collection Mode',
-        subtitle: 'Global Review Collection Console',
+        subtitle: 'Global Review Collection Console Login',
         notice: 'This entry only supports read/filter/export and blocks reply/save/delete actions.',
         account: 'Account / Email',
         password: 'Access Key',
         enter: 'Enter Console',
         skip: 'Skip (Demo)',
-        meta: 'After login, you will be redirected to Dashboard with task/monitor context preserved.'
+        meta: 'After login, you will be redirected to Dashboard with task/monitor context preserved.',
+        uid_ph: 'Enter account',
+        pwd_ph: 'Enter password',
+        toggle: '中文',
       }
     };
 
@@ -243,9 +249,9 @@
         const text = I18N[lang]?.[key];
         if (text) node.textContent = text;
       });
-      document.getElementById('uid').placeholder = lang === 'zh' ? '请输入账号' : 'Enter account';
-      document.getElementById('pwd').placeholder = lang === 'zh' ? '请输入密码' : 'Enter password';
-      langToggle.textContent = lang === 'zh' ? 'EN' : '中文';
+      document.getElementById('uid').placeholder = I18N[lang].uid_ph;
+      document.getElementById('pwd').placeholder = I18N[lang].pwd_ph;
+      langToggle.textContent = I18N[lang].toggle;
     }
 
     function goDashboard() {

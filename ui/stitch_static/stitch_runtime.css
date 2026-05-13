@@ -1,0 +1,137 @@
+
+:root { --heytea-nav-width: 240px; --heytea-topbar-height: 48px; }
+html, body { min-width: 1180px; }
+nav[data-heytea-nav="true"] {
+  width: var(--heytea-nav-width) !important;
+  min-width: var(--heytea-nav-width) !important;
+  max-width: var(--heytea-nav-width) !important;
+  box-sizing: border-box !important;
+  font-family: Inter, Arial, sans-serif !important;
+}
+nav[data-heytea-nav="true"] .heytea-nav-brand { padding: 24px 18px 22px !important; }
+nav[data-heytea-nav="true"] h1 { font-size: 24px !important; line-height: 30px !important; letter-spacing: -0.04em !important; }
+nav[data-heytea-nav="true"] p { font-size: 11px !important; line-height: 16px !important; color: #5f6368 !important; }
+nav[data-heytea-nav="true"] .heytea-nav-list { padding: 0 12px !important; gap: 4px !important; }
+nav[data-heytea-nav="true"] a { min-height: 44px !important; display: flex !important; align-items: center !important; gap: 12px !important; padding: 10px 14px !important; color: #4b5563 !important; font-size: 14px !important; line-height: 18px !important; text-decoration: none !important; border-left: 4px solid transparent !important; border-radius: 0 !important; box-sizing: border-box !important; white-space: normal !important; }
+nav[data-heytea-nav="true"] a:hover { color: #000 !important; background: #f3f4f6 !important; }
+nav[data-heytea-nav="true"] a.is-active { color: #000 !important; background: #eeeeee !important; border-left-color: #000 !important; font-weight: 700 !important; }
+nav[data-heytea-nav="true"] .material-symbols-outlined { width: 18px !important; min-width: 18px !important; font-size: 18px !important; line-height: 18px !important; color: currentColor !important; }
+nav[data-heytea-nav="true"] .heytea-nav-footer { padding: 0 18px 20px !important; gap: 12px !important; }
+nav[data-heytea-nav="true"] .heytea-export { height: 38px !important; background: #000 !important; color: #fff !important; border: 0 !important; font-size: 13px !important; font-weight: 700 !important; width: 100% !important; }
+.heytea-main-normalized { margin-left: var(--heytea-nav-width) !important; }
+.heytea-header-normalized { left: var(--heytea-nav-width) !important; width: calc(100% - var(--heytea-nav-width)) !important; }
+.heytea-toast { position: fixed; right: 20px; bottom: 20px; z-index: 99999; background: #111; color: #fff; border: 1px solid #000; padding: 11px 14px; font: 13px Inter, Arial, sans-serif; box-shadow: 0 10px 30px rgba(0,0,0,.25); max-width: 420px; }
+.heytea-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.38); z-index: 99990; display: flex; align-items: center; justify-content: center; }
+.heytea-modal { width: min(720px, calc(100vw - 56px)); max-height: min(760px, calc(100vh - 56px)); overflow: auto; background: #fff; color: #111; border: 1px solid #111; box-shadow: 8px 8px 0 rgba(0,0,0,.2); font-family: Inter, Arial, sans-serif; }
+.heytea-modal header { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid #d1d5db; font-weight: 800; }
+.heytea-modal section { padding: 18px; white-space: pre-wrap; font-size: 13px; line-height: 1.55; }
+.heytea-modal button { background: #000; color: #fff; border: 0; padding: 8px 12px; font-weight: 700; }
+.heytea-range-modal p { margin: 0 0 14px; color: #374151; }
+.heytea-range-options, .heytea-range-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.heytea-range-options button { background: #fff; color: #111; border: 1px solid #111; min-width: 120px; }
+.heytea-range-options button.is-active { background: #111; color: #fff; }
+.heytea-range-actions button { background: #111; color: #fff; border: 1px solid #111; }
+.heytea-range-actions button:disabled { opacity: .55; cursor: wait; }
+.heytea-range-output { min-height: 72px; max-height: 280px; overflow: auto; margin: 14px 0 0; padding: 12px; background: #f3f4f6; border: 1px solid #d1d5db; color: #111; font: 12px/1.45 Consolas, "JetBrains Mono", monospace; white-space: pre-wrap; }
+.heytea-state-selected { outline: 2px solid #000 !important; outline-offset: -2px !important; }
+.heytea-hidden { display: none !important; }
+button, a, select, input[type="checkbox"], input[type="radio"] { cursor: pointer; }
+
+header[data-heytea-header="true"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: var(--heytea-nav-width) !important;
+  right: 0 !important;
+  width: calc(100% - var(--heytea-nav-width)) !important;
+  height: 52px !important;
+  z-index: 50 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 20px !important;
+  background: #fff !important;
+  border-bottom: 1px solid #d8d2d3 !important;
+  color: #000 !important;
+  font-family: Inter, Arial, sans-serif !important;
+  box-sizing: border-box !important;
+}
+.heytea-header-left, .heytea-header-right { display: flex !important; align-items: center !important; gap: 14px !important; min-width: 0 !important; }
+.heytea-header-title { font-size: 16px !important; line-height: 20px !important; font-weight: 800 !important; color: #000 !important; white-space: nowrap !important; }
+.heytea-header-range { font: 12px "JetBrains Mono", Consolas, monospace !important; color: #6b7280 !important; white-space: nowrap !important; }
+.heytea-readonly-badge { display: inline-flex !important; align-items: center !important; gap: 6px !important; height: 28px !important; padding: 0 10px !important; border: 1px solid #d8d2d3 !important; background: #f8f8f8 !important; color: #4b5563 !important; font-size: 12px !important; font-weight: 700 !important; white-space: nowrap !important; }
+.heytea-clock { display: inline-flex !important; flex-direction: column !important; align-items: flex-end !important; justify-content: center !important; min-width: 168px !important; font-family: "JetBrains Mono", Consolas, monospace !important; line-height: 1.15 !important; color: #111 !important; }
+.heytea-clock-label { font: 10px Inter, Arial, sans-serif !important; color: #6b7280 !important; text-transform: uppercase !important; letter-spacing: .04em !important; }
+.heytea-clock-time { font-size: 12px !important; font-weight: 700 !important; }
+.heytea-header-select { height: 32px !important; border: 1px solid #111 !important; background: #fff !important; color: #111 !important; padding: 0 8px !important; font-size: 12px !important; font-weight: 700 !important; border-radius: 0 !important; max-width: 160px !important; }
+.heytea-header-button { height: 32px !important; border: 1px solid #111 !important; background: #fff !important; color: #111 !important; padding: 0 12px !important; font-size: 12px !important; font-weight: 800 !important; display: inline-flex !important; align-items: center !important; gap: 6px !important; text-transform: none !important; }
+.heytea-header-button.primary { background: #000 !important; color: #fff !important; }
+.heytea-header-icon { width: 32px !important; height: 32px !important; border: 0 !important; background: transparent !important; color: #4b5563 !important; display: inline-flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; position: relative !important; }
+.heytea-notify-badge { position: absolute !important; top: 1px !important; right: -3px !important; min-width: 14px !important; height: 14px !important; border-radius: 999px !important; padding: 0 4px !important; background: #ba1a1a !important; color: #fff !important; font: 10px/14px Inter, Arial, sans-serif !important; text-align: center !important; box-sizing: border-box !important; }
+.heytea-header-divider { height: 24px !important; width: 1px !important; background: #d8d2d3 !important; }
+.heytea-settings-grid { display: grid; grid-template-columns: 160px 1fr; gap: 12px; align-items: center; }
+.heytea-settings-grid label { font-size: 12px; font-weight: 800; color: #374151; }
+.heytea-settings-grid select { height: 34px; border: 1px solid #111; background: #fff; padding: 0 8px; }
+.heytea-settings-shell { min-height: calc(100vh - 100px); background: #f3f3f3; color: #111; border: 1px solid #d8d2d3; font-family: Inter, Arial, sans-serif; display: flex; flex-direction: column; }
+.heytea-settings-title { min-height: 78px; background: #fff; border-bottom: 1px solid #d8d2d3; padding: 18px 22px; display: flex; align-items: center; gap: 14px; }
+.heytea-settings-title > .material-symbols-outlined { color: #e53935; font-size: 28px; }
+.heytea-settings-title h2 { margin: 0; font-size: 22px; line-height: 28px; font-weight: 900; }
+.heytea-settings-title p { margin: 4px 0 0; color: #6b7280; font-size: 13px; line-height: 18px; max-width: 900px; }
+.heytea-settings-title button { margin-left: auto; border: 0; background: transparent; color: #777; font-size: 24px; }
+.heytea-settings-tabs { height: 44px; background: #fff; border-bottom: 1px solid #d8d2d3; display: flex; align-items: stretch; gap: 8px; padding: 0 18px; }
+.heytea-settings-tabs button { min-width: 108px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #6b7280; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 13px; }
+.heytea-settings-tabs button.is-active { color: #e53935; border-bottom-color: #e53935; }
+.heytea-settings-tabs .material-symbols-outlined { font-size: 18px; }
+.heytea-settings-content { padding: 22px 28px 90px; overflow: auto; max-height: calc(100vh - 230px); }
+.heytea-settings-section { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; align-items: start; }
+.heytea-settings-section h3 { grid-column: 1 / -1; margin: 8px 0 6px; font-size: 15px; font-weight: 900; color: #000; }
+.heytea-provider-card { border: 1px solid #d8d2d3; background: #fff; padding: 14px; display: grid; grid-template-columns: 1fr; gap: 10px; }
+.heytea-provider-card strong { font-size: 14px; font-weight: 900; }
+.heytea-setting-field { display: grid; grid-template-columns: 180px 1fr; gap: 14px; align-items: center; min-height: 38px; }
+.heytea-setting-field.wide { grid-column: 1 / -1; grid-template-columns: 180px 1fr; align-items: start; }
+.heytea-setting-field span, .heytea-setting-check span { font-size: 13px; color: #374151; font-weight: 700; }
+.heytea-setting-field input, .heytea-setting-field select, .heytea-setting-field textarea { width: 100%; min-height: 34px; border: 0; background: #fff; color: #111; padding: 7px 12px; font-size: 13px; outline: 1px solid transparent; }
+.heytea-setting-field input:focus, .heytea-setting-field select:focus, .heytea-setting-field textarea:focus { outline-color: #e53935; }
+.heytea-setting-field textarea { min-height: 104px; font-family: Consolas, "JetBrains Mono", monospace; resize: vertical; }
+.heytea-path-picker { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.heytea-settings-browse { min-height: 34px; border: 1px solid #d8d2d3; background: #fff; color: #111; padding: 0 12px; font-size: 12px; font-weight: 800; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.heytea-folder-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.heytea-folder-toolbar button { border: 1px solid #111; background: #fff; color: #111; min-height: 32px; padding: 0 10px; font-weight: 800; }
+.heytea-folder-current { margin: 0 0 8px; font-size: 12px; color: #374151; font-family: Consolas, "JetBrains Mono", monospace; word-break: break-all; }
+.heytea-folder-list { border: 1px solid #d1d5db; background: #fff; max-height: 260px; overflow: auto; display: grid; grid-template-columns: 1fr; gap: 0; margin: 0 0 10px; }
+.heytea-folder-item { border: 0; border-bottom: 1px solid #f1f5f9; background: #fff; color: #111; text-align: left; padding: 8px 10px; font-size: 12px; }
+.heytea-folder-item:hover { background: #f8fafc; }
+.heytea-setting-check { min-height: 34px; display: flex; align-items: center; gap: 10px; }
+.heytea-setting-check input { width: 20px; height: 20px; accent-color: #e53935; }
+.heytea-settings-footer { position: sticky; bottom: 0; min-height: 58px; background: #fff; border-top: 1px solid #d8d2d3; padding: 10px 14px; display: grid; grid-template-columns: auto auto auto 1fr auto auto; gap: 10px; align-items: center; }
+.heytea-settings-footer button, .heytea-settings-primary { min-height: 36px; border: 1px solid #d8d2d3; background: #fff; color: #111; padding: 0 16px; font-size: 13px; font-weight: 800; }
+.heytea-settings-primary, .heytea-settings-footer .heytea-settings-primary { background: #e53935; border-color: #e53935; color: #fff; }
+.heytea-settings-output { grid-column: 1 / -1; min-height: 220px; background: #111; color: #e5e7eb; padding: 14px; overflow: auto; font: 12px/1.5 Consolas, "JetBrains Mono", monospace; white-space: pre-wrap; }
+.heytea-guide-shell { gap: 0; }
+.heytea-guide-toolbar { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 22px; background: #fff; border-bottom: 1px solid #d8d2d3; }
+.heytea-guide-toolbar button { min-height: 34px; border: 1px solid #111; background: #111; color: #fff; padding: 0 12px; font-size: 12px; font-weight: 800; }
+.heytea-guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 22px; }
+.heytea-guide-grid section, .heytea-guide-section { background: #fff; border: 1px solid #d8d2d3; padding: 16px; }
+.heytea-guide-grid h3, .heytea-guide-section h3 { margin: 0 0 10px; font-size: 15px; font-weight: 900; color: #111; }
+.heytea-guide-grid ul, .heytea-guide-grid ol, .heytea-guide-section ul { margin: 0; padding-left: 20px; color: #374151; font-size: 13px; line-height: 1.65; }
+.heytea-guide-section { margin: 0 22px 16px; }
+.heytea-guide-table-wrap { overflow: auto; border: 1px solid #e5e7eb; }
+.heytea-guide-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.heytea-guide-table th, .heytea-guide-table td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; white-space: nowrap; }
+.heytea-guide-table th { background: #f3f4f6; color: #374151; font-weight: 900; }
+.heytea-guide-table span { display: inline-flex; align-items: center; justify-content: center; padding: 2px 8px; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+.heytea-login-splash { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.9), rgba(243,243,243,.95)); }
+.heytea-login-splash::before { content: ""; position: absolute; inset: 0; background: url('/stitch-static/login_animation/screen.png') center/cover no-repeat; opacity: .07; filter: grayscale(1); }
+.heytea-login-card { position: relative; width: min(540px, calc(100vw - 40px)); border: 1px solid #d8d2d3; background: #fff; box-shadow: 0 16px 40px rgba(0,0,0,.12); padding: 34px 32px; }
+.heytea-login-title { font-size: 34px; font-weight: 900; letter-spacing: -.03em; color: #111; margin: 0; }
+.heytea-login-subtitle { margin: 8px 0 0; color: #4b5563; font-size: 15px; }
+.heytea-login-loader { margin-top: 24px; height: 8px; width: 100%; background: #e5e7eb; overflow: hidden; position: relative; }
+.heytea-login-loader::after { content: ""; position: absolute; inset: 0; width: 35%; background: #111; animation: heytea-loader 1.2s ease-in-out infinite; }
+.heytea-login-meta { margin-top: 10px; font: 12px "JetBrains Mono", Consolas, monospace; color: #6b7280; }
+.heytea-login-splash.fade-out { animation: heytea-splash-fade .35s ease forwards; }
+@keyframes heytea-loader { 0% { transform: translateX(-120%); } 100% { transform: translateX(340%); } }
+@keyframes heytea-splash-fade { from { opacity: 1; } to { opacity: 0; visibility: hidden; } }
+
+html[data-heytea-lang="en"], html[data-heytea-lang="en"] body { font-family: Inter, Arial, sans-serif !important; }
+html[data-heytea-lang="zh"], html[data-heytea-lang="zh"] body { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Inter, Arial, sans-serif !important; }
+html[data-heytea-lang="zh"] *:not(.material-symbols-outlined):not(.heytea-clock-time) { font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Inter, Arial, sans-serif !important; }
+html[data-heytea-lang="en"] *:not(.material-symbols-outlined):not(.heytea-clock-time) { font-family: Inter, Arial, sans-serif !important; }

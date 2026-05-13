@@ -1,0 +1,21 @@
+{
+  "platform": "mfood",
+  "account": "tianshenxiang",
+  "country": "mo",
+  "stores": "all",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 100,
+  "mode": "auto",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_mfood_tianshenxiang_last7"
+  },
+  "options": {
+    "headless": false,
+    "manual_login": true,
+    "max_pages": 20
+  }
+}

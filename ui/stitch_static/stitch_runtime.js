@@ -10,6 +10,7 @@
     ['safety_audit', 'Safety & Audit', '\u5b89\u5168\u5ba1\u8ba1', 'security', '/stitch-static/safety_audit_global/code.html']
   ];  const timezones = [
     ['Asia/Shanghai', 'Beijing / \u5317\u4eac'],
+    ['US/Eastern', 'Washington DC / \u534e\u76db\u987f'],
     ['Asia/Hong_Kong', 'China Hong Kong / \u4e2d\u56fd\u9999\u6e2f'],
     ['Asia/Singapore', 'Singapore / \u65b0\u52a0\u5761'],
     ['Asia/Tokyo', 'Tokyo / \u4e1c\u4eac'],
@@ -42,7 +43,7 @@
     'Platform': '\u5e73\u53f0', 'Country': '\u56fd\u5bb6/\u5730\u533a', 'Country/Region': '\u56fd\u5bb6/\u5730\u533a', 'All Regions': '\u5168\u90e8\u5730\u533a', 'All Platforms': '\u5168\u90e8\u5e73\u53f0', 'United Kingdom': '\u82f1\u56fd', 'United States': '\u7f8e\u56fd', 'Singapore': '\u65b0\u52a0\u5761', 'Store Scope': '\u95e8\u5e97\u8303\u56f4', 'All Active Stores': '\u6240\u6709\u6d3b\u8dc3\u95e8\u5e97', 'By JDE Code List': '\u6309 JDE \u7f16\u7801\u5217\u8868', 'By Store Name': '\u6309\u95e8\u5e97\u540d\u79f0', 'By Direct URL': '\u6309\u76f4\u8fde URL',
     'Date Range': '\u65e5\u671f\u8303\u56f4', 'Last 7 Days': '\u8fd1 7 \u5929', 'Last 30 Days': '\u8fd1 30 \u5929', 'Collect Now': '\u7acb\u5373\u91c7\u96c6', 'Start Sync': '\u5f00\u59cb\u540c\u6b65', 'Stop Sync': '\u505c\u6b62\u540c\u6b65', 'Dry Run': '\u6f14\u7ec3\u8fd0\u884c', 'Custom': '\u81ea\u5b9a\u4e49', 'Field Extraction': '\u5b57\u6bb5\u63d0\u53d6', 'Rating (Required)': '\u8bc4\u5206\uff08\u5fc5\u9700\uff09', 'Comment Text (Required)': '\u8bc4\u8bba\u6587\u672c\uff08\u5fc5\u9700\uff09', 'Auto-Translation': '\u81ea\u52a8\u7ffb\u8bd1', 'Image URLs': '\u56fe\u7247 URL', 'Order ID (If available)': '\u8ba2\u5355 ID\uff08\u5982\u6709\uff09',
     'Read-Only Mode': '\u53ea\u8bfb\u6a21\u5f0f', 'Platform policy enforces read-only access for this account tier. Writes are disabled.': '\u5e73\u53f0\u7b56\u7565\u5bf9\u8be5\u8d26\u53f7\u5f3a\u5236\u53ea\u8bfb\u8bbf\u95ee\uff0c\u5199\u5165\u52a8\u4f5c\u5df2\u7981\u7528\u3002', 'Run Method': '\u8fd0\u884c\u65b9\u5f0f', 'Immediate': '\u7acb\u5373\u6267\u884c', 'Scheduled': '\u5b9a\u65f6\u6267\u884c', 'Dry Run (Estimate limits)': '\u6f14\u7ec3\u8fd0\u884c\uff08\u4f30\u7b97\u9650\u989d\uff09', 'Cancel': '\u53d6\u6d88', 'Deploy Task': '\u90e8\u7f72\u4efb\u52a1',
-    'This Week (2023-10-01 to 2023-10-07)': '\u672c\u5468\uff082023-10-01 \u81f3 2023-10-07\uff09', '7-Day Volume vs Negative Rate': '7\u5929\u8bc4\u8bba\u667a\u80fd\u603b\u89c8', 'Volume': '\u8bc4\u8bba\u91cf', 'Negative Rate (%)': '\u98ce\u9669\u8d8b\u52bf\u6307\u6570', 'Chart visualization area. Requires JS charting library.': '\u56fe\u8868\u53ef\u89c6\u5316\u533a\u57df\uff0c\u9700\u8981 JS \u56fe\u8868\u5e93\u3002', 'Platform Connection Status': '\u5e73\u53f0\u8fde\u63a5\u72b6\u6001', 'Coverage Matrix': '\u8986\u76d6\u77e9\u9635', 'Region': '\u533a\u57df', 'High-Risk Exceptions': '\u9ad8\u98ce\u9669\u5f02\u5e38', 'View All': '\u67e5\u770b\u5168\u90e8',
+    'Last 7 Days (Live)': '\u8fd1 7 \u5929\uff08\u5b9e\u65f6\uff09', '7-Day Review Intelligence Overview': '7\u5929\u8bc4\u8bba\u667a\u80fd\u603b\u89c8', 'Volume': '\u8bc4\u8bba\u91cf', 'Risk Signal Index': '\u98ce\u9669\u4fe1\u53f7\u6307\u6570', 'Chart visualization area. Requires JS charting library.': '\u56fe\u8868\u53ef\u89c6\u5316\u533a\u57df\uff0c\u9700\u8981 JS \u56fe\u8868\u5e93\u3002', 'Platform Connection Status': '\u5e73\u53f0\u8fde\u63a5\u72b6\u6001', 'Coverage Matrix': '\u8986\u76d6\u77e9\u9635', 'Region': '\u533a\u57df', 'High-Risk Exceptions': '\u9ad8\u98ce\u9669\u5f02\u5e38', 'View All': '\u67e5\u770b\u5168\u90e8',
     'Configuration and health status of all data extraction targets.': '\u6240\u6709\u6570\u636e\u91c7\u96c6\u76ee\u6807\u7684\u914d\u7f6e\u548c\u5065\u5eb7\u72b6\u6001\u3002', 'Filter': '\u7b5b\u9009', 'New Platform': '\u65b0\u5e73\u53f0', 'Platform Name': '\u5e73\u53f0\u540d\u79f0', 'Executor Path': '\u6267\u884c\u5668\u8def\u5f84', 'Login Method': '\u767b\u5f55\u65b9\u5f0f', 'Default Strategy': '\u9ed8\u8ba4\u7b56\u7565', 'Order': '\u8ba2\u5355', 'Img': '\u56fe\u7247', 'Trans': '\u7ffb\u8bd1', 'Human-Gate': '\u4eba\u5de5\u95e8', 'Actions': '\u64cd\u4f5c',
     'Constraints & Capabilities': '\u7ea6\u675f\u4e0e\u80fd\u529b', 'Safety Constraints': '\u5b89\u5168\u7ea6\u675f', 'STRICT: NO REPLY': '\u4e25\u683c\uff1a\u7981\u6b62\u56de\u590d', 'STRICT: NO DELETE': '\u4e25\u683c\uff1a\u7981\u6b62\u5220\u9664', 'STRICT: NO SUBMIT': '\u4e25\u683c\uff1a\u7981\u6b62\u63d0\u4ea4', 'Supported': '\u5df2\u652f\u6301', 'Unsupported': '\u672a\u652f\u6301', 'Recent Failures': '\u6700\u8fd1\u5931\u8d25', 'View all logs': '\u67e5\u770b\u6240\u6709\u65e5\u5fd7', 'Next Plan / Roadmap': '\u4e0b\u4e00\u6b65\u8ba1\u5212 / \u8def\u7ebf\u56fe', 'Known Issues': '\u5df2\u77e5\u95ee\u9898',
     'Data Quality Control': '\u6570\u636e\u8d28\u91cf\u63a7\u5236', 'System-wide monitoring of extraction fidelity and data integrity.': '\u5168\u7cfb\u7edf\u76d1\u63a7\u91c7\u96c6\u4fdd\u771f\u5ea6\u548c\u6570\u636e\u5b8c\u6574\u6027\u3002', 'Last Updated': '\u6700\u540e\u66f4\u65b0', 'Store': '\u95e8\u5e97', 'Rating': '\u8bc4\u5206', 'Sentiment': '\u60c5\u611f', 'Negative': '\u8d1f\u9762', 'Positive': '\u6b63\u9762', 'Partial': '\u90e8\u5206', 'Failed': '\u5931\u8d25', 'Pending': '\u7b49\u5f85', 'Running': '\u8fd0\u884c\u4e2d', 'Queued': '\u6392\u961f\u4e2d', 'Active': '\u6d3b\u8dc3', 'Covered': '\u5df2\u8986\u76d6', 'Success': '\u6210\u529f', 'Normal': '\u6b63\u5e38', 'No': '\u5426', 'All': '\u5168\u90e8', 'Today': '\u4eca\u65e5', 'Yesterday': '\u6628\u65e5', 'Reviews': '\u8bc4\u8bba', 'Photos': '\u56fe\u7247', 'Translation': '\u7ffb\u8bd1', 'Order Details': '\u8ba2\u5355\u8be6\u60c5', 'Data Capabilities': '\u6570\u636e\u80fd\u529b', 'Platform Entry': '\u5e73\u53f0\u5165\u53e3', 'Total Ingestion': '\u91c7\u96c6\u603b\u91cf', 'Avg Rating': '\u5e73\u5747\u8bc4\u5206', 'Sync Error': '\u540c\u6b65\u9519\u8bef', 'Pending Setup': '\u5f85\u914d\u7f6e', 'Search ID': '\u641c\u7d22 JDE', 'Search by name': '\u6309\u95e8\u5e97\u540d\u641c\u7d22', 'Showing': '\u663e\u793a', 'Stores': '\u5bb6\u95e8\u5e97',
@@ -62,7 +63,7 @@
     'Write-Action Suspected': '\u7591\u4f3c\u5199\u5165\u64cd\u4f5c',
     'Form submission field detected in viewport during automated scroll. Task terminated as safety precaution.': '\u81ea\u52a8\u6eda\u52a8\u671f\u95f4\u68c0\u6d4b\u5230\u89c6\u53e3\u5185\u5b58\u5728\u8868\u5355\u63d0\u4ea4\u5b57\u6bb5\u3002\u4e3a\u5b89\u5168\u8d77\u89c1\uff0c\u4efb\u52a1\u5df2\u7ec8\u6b62\u3002',
     'Unusual Login Pattern': '\u5f02\u5e38\u767b\u5f55\u6a21\u5f0f',
-    'Yelp session token refresh required manual re-authentication.': 'Yelp \u4f1a\u8bdd\u4ee4\u724c\u5237\u65b0\u9700\u8981\u4eba\u5de5\u91cd\u65b0\u8ba4\u8bc1\u3002',
+    'Merchant session token refresh required manual re-authentication.': '\u5546\u5bb6\u540e\u53f0\u4f1a\u8bdd\u4ee4\u724c\u5237\u65b0\u9700\u8981\u4eba\u5de5\u91cd\u65b0\u8ba4\u8bc1\u3002',
     'Export Activity Log': '\u5bfc\u51fa\u6d3b\u52a8\u65e5\u5fd7',
     'Google Maps POI scraping interrupted. Manual solver initiated by operator.': 'Google Maps POI \u91c7\u96c6\u88ab\u4e2d\u65ad\uff0c\u5df2\u7531\u64cd\u4f5c\u5458\u542f\u52a8\u4eba\u5de5\u89e3\u9898\u3002',
     'System Auto-Job': '\u7cfb\u7edf\u81ea\u52a8\u4efb\u52a1',
@@ -113,7 +114,7 @@
     nav_settings: { en: 'Settings', zh: '设置' },
     nav_help_center: { en: 'Help Center', zh: '帮助中心' },
     header_title: { en: 'Overseas Review Platform', zh: '海外评论采集平台' },
-    header_date_range: { en: 'This Week (2023-10-01 to 2023-10-07)', zh: '本周（2023-10-01 至 2023-10-07）' },
+    header_date_range: { en: 'Last 7 Days (Live)', zh: '近 7 天（实时）' },
     status_readonly: { en: 'ReadOnly Mode Enabled', zh: '只读模式已启用' },
     action_export_report: { en: 'Export Report', zh: '导出报告' },
     action_weekly_range: { en: 'Weekly Range', zh: '近一周范围' },
@@ -303,6 +304,38 @@
     });
     return Object.fromEntries(formatter.formatToParts(date).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
   };
+  const BEIJING_ZONE = 'Asia/Shanghai';
+  const toInt = value => Number.parseInt(value, 10) || 0;
+  const zoneOffsetMinutes = (date, zone) => {
+    const parts = getZonedParts(date, zone);
+    const asUtc = Date.UTC(toInt(parts.year), toInt(parts.month) - 1, toInt(parts.day), toInt(parts.hour), toInt(parts.minute), toInt(parts.second));
+    return Math.round((asUtc - date.getTime()) / 60000);
+  };
+  const formatUtcOffset = offsetMinutes => {
+    const sign = offsetMinutes >= 0 ? '+' : '-';
+    const absolute = Math.abs(offsetMinutes);
+    const hours = String(Math.floor(absolute / 60)).padStart(2, '0');
+    const minutes = String(absolute % 60).padStart(2, '0');
+    return `UTC${sign}${hours}:${minutes}`;
+  };
+  const describeDeltaFromBeijing = (date, zone) => {
+    const targetOffset = zoneOffsetMinutes(date, zone);
+    const beijingOffset = zoneOffsetMinutes(date, BEIJING_ZONE);
+    const delta = targetOffset - beijingOffset;
+    if (delta === 0) return lang() === 'zh' ? '与北京时间一致' : 'Same as Beijing time';
+    const abs = Math.abs(delta);
+    const hours = Math.floor(abs / 60);
+    const minutes = abs % 60;
+    const hourText = minutes === 0 ? `${hours}` : `${hours}h ${minutes}m`;
+    if (lang() === 'zh') {
+      return delta < 0
+        ? `较北京时间晚 ${minutes === 0 ? `${hours} 小时` : `${hours} 小时 ${minutes} 分钟`}`
+        : `较北京时间早 ${minutes === 0 ? `${hours} 小时` : `${hours} 小时 ${minutes} 分钟`}`;
+    }
+    return delta < 0
+      ? `${hourText} behind Beijing time`
+      : `${hourText} ahead of Beijing time`;
+  };
   const zonedDateString = (date, zone) => {
     const parts = getZonedParts(date, zone);
     return `${parts.year}-${parts.month}-${parts.day}`;
@@ -428,7 +461,7 @@
       try {
         let result;
         if (action === 'dry-run') result = await apiJson('/api/unified/dry-run', { method: 'POST', body: JSON.stringify({ platform: 'google_maps', days }) });
-        if (action === 'collect') result = await apiJson('/api/unified/collect', { method: 'POST', body: JSON.stringify({ platform: 'google_maps', days, dry_run: false }) });
+        if (action === 'collect') result = await apiJson('/api/unified/monitor/run-once', { method: 'POST', body: JSON.stringify({ days, dry_run: false }) });
         if (action === 'start-sync') {
           const intervalSeconds = await getSyncIntervalSeconds();
           result = await apiJson('/api/unified/monitor/start', { method: 'POST', body: JSON.stringify({ days, dry_run: false, interval_seconds: intervalSeconds }) });
@@ -1506,7 +1539,12 @@
     const now = new Date();
     const parts = getZonedParts(now, zone);
     node.textContent = `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}:${parts.second}`;
-    if (label) label.textContent = zone === 'Asia/Shanghai' ? t('clock') : timezones.find(([z]) => z === zone)?.[1] || zone;
+    if (label) {
+      const zoneLabel = zone === BEIJING_ZONE ? t('clock') : (timezones.find(([z]) => z === zone)?.[1] || zone);
+      const offsetText = formatUtcOffset(zoneOffsetMinutes(now, zone));
+      label.textContent = `${zoneLabel} (${offsetText})`;
+      label.title = describeDeltaFromBeijing(now, zone);
+    }
     updateDynamicDateLabels();
   }
   function startClock() { updateClock(); clearInterval(window.__heyteaClockTimer); window.__heyteaClockTimer = setInterval(updateClock, 1000); }
@@ -1912,7 +1950,133 @@
     const view = params.get('view');
     if (view === 'knowledge') {
       const main = document.querySelector('main');
-      if (main) main.innerHTML = `<div class="heytea-settings-shell"><div class="heytea-settings-title"><span class="material-symbols-outlined">search</span><div><h2>${escapeHtml(sl('knowledgeTitle'))}</h2><p>${escapeHtml(sl('knowledgeBody'))}</p></div><button type="button" data-settings-action="production-check">${escapeHtml(sl('runCheck'))}</button></div><pre class="heytea-settings-output" id="heytea-production-output"></pre></div>`;
+      if (main) {
+        const [statusRes, runsRes, checkRes, settingsRes] = await Promise.all([
+          apiJsonSoft('/api/unified/status', { platforms: {}, tasks: [], store_count: 0, monitor: {}, safety: { denied: [] } }),
+          apiJsonSoft('/api/unified/runs?limit=80', { runs: [] }),
+          apiJsonSoft('/api/unified/production-check', { production_check: { checks: [] } }),
+          apiJsonSoft('/api/unified/settings', { settings: {} }),
+        ]);
+        const status = statusRes.data || {};
+        const runs = runsRes.data?.runs || [];
+        const checks = checkRes.data?.production_check || {};
+        const settings = settingsRes.data?.settings || {};
+        const taskNames = status.tasks || [];
+        const platformRows = Object.entries(status.platforms || {}).map(([rawKey, capability]) => {
+          const key = canonicalUiPlatform(rawKey);
+          const taskReady = taskNames.some(name => canonicalUiPlatform(name).includes(key));
+          const run = runs.find(item => canonicalUiPlatform(item.platform || '') === key) || {};
+          const state = derivePlatformStates(status, runs)[key] || { state: taskReady ? 'pending' : 'failed', detail: taskReady ? 'Task template ready' : 'Task template missing' };
+          const badge = stateBadge(state.state);
+          return `<tr>
+            <td>${escapeHtml(platformLabel(key))}</td>
+            <td>${escapeHtml(capability.executor || '-')}</td>
+            <td>${capability.supports_order_detail ? '✓' : '—'}</td>
+            <td>${capability.supports_review_images ? '✓' : '—'}</td>
+            <td>${capability.supports_login ? (lang() === 'zh' ? '需登录/会话' : 'Login/session') : (lang() === 'zh' ? '公开页' : 'Public')}</td>
+            <td>${taskReady ? '✓' : '—'}</td>
+            <td>${escapeHtml(String(run.review_count ?? '-'))}</td>
+            <td><span class="${badge.cls}">${escapeHtml(badge.label)}</span></td>
+          </tr>`;
+        }).join('');
+        const failedRuns = runs.filter(run => Number(run.error_count || 0) > 0).slice(0, 8);
+        const checkRows = (checks.checks || []).map(item => `<li><strong>${escapeHtml(item.id || '-')}</strong> · ${escapeHtml(item.ok ? (lang() === 'zh' ? '通过' : 'OK') : (lang() === 'zh' ? '需处理' : 'Action needed'))} · ${escapeHtml(item.message || '')}</li>`).join('');
+        const failRows = failedRuns.length
+          ? failedRuns.map(run => `<li><strong>${escapeHtml(platformLabel(run.platform || '-'))}</strong> · ${escapeHtml(run.account || '-')} · ${escapeHtml(String(run.error_count || 0))} ${lang() === 'zh' ? '个错误' : 'errors'} · ${escapeHtml(run.run_id || '')}</li>`).join('')
+          : `<li>${lang() === 'zh' ? '暂无失败运行。' : 'No failed runs.'}</li>`;
+        main.innerHTML = `
+          <div class="heytea-settings-shell heytea-guide-shell">
+            <div class="heytea-settings-title">
+              <span class="material-symbols-outlined">help</span>
+              <div>
+                <h2>${escapeHtml(sl('knowledgeTitle'))}</h2>
+                <p>${escapeHtml(sl('knowledgeBody'))}</p>
+              </div>
+              <button type="button" data-operator-action="settings">${lang() === 'zh' ? '打开设置' : 'Settings'}</button>
+            </div>
+            <div class="heytea-guide-toolbar">
+              <button type="button" data-operator-action="start-sync">${lang() === 'zh' ? '启动全平台 1小时同步' : 'Start all-platform 1h sync'}</button>
+              <button type="button" data-operator-action="stop-sync">${lang() === 'zh' ? '停止同步' : 'Stop sync'}</button>
+              <button type="button" data-operator-action="production-check">${lang() === 'zh' ? '生产检查' : 'Production check'}</button>
+              <button type="button" data-operator-action="download-support">${lang() === 'zh' ? '导出支持包' : 'Download support pack'}</button>
+            </div>
+            <div class="heytea-guide-grid">
+              <section>
+                <h3>${lang() === 'zh' ? '当前运行状态' : 'Runtime Status'}</h3>
+                <ul>
+                  <li>${lang() === 'zh' ? '门店注册表' : 'Store registry'}: ${escapeHtml(String(status.store_count || 0))}</li>
+                  <li>${lang() === 'zh' ? '任务模板' : 'Task templates'}: ${escapeHtml(String(taskNames.length || 0))}</li>
+                  <li>${lang() === 'zh' ? '同步监控' : 'Sync monitor'}: ${status.monitor?.running ? (lang() === 'zh' ? '运行中' : 'running') : (lang() === 'zh' ? '未运行' : 'stopped')}</li>
+                  <li>${lang() === 'zh' ? '同步间隔' : 'Sync interval'}: ${escapeHtml(String(settings.processing?.sync_interval_seconds || status.monitor?.interval_seconds || 3600))}s</li>
+                  <li>${lang() === 'zh' ? '真实任务并发' : 'Real-task concurrency'}: ${escapeHtml(String(settings.processing?.real_concurrency || 1))}</li>
+                </ul>
+              </section>
+              <section>
+                <h3>${lang() === 'zh' ? '标准操作流程' : 'Standard Operating Procedure'}</h3>
+                <ol>
+                  <li>${lang() === 'zh' ? '在设置页确认模型 Base URL、API Key、导出目录、断点目录。' : 'Confirm model Base URL, API key, export directory and checkpoint path in Settings.'}</li>
+                  <li>${lang() === 'zh' ? '先运行生产检查，修复高风险项后再启动真实采集。' : 'Run Production Check first; fix high-risk items before real collection.'}</li>
+                  <li>${lang() === 'zh' ? '使用近7天或近30天范围，后台按平台账号锁串行执行真实浏览器任务。' : 'Use last 7 or 30 days; real browser jobs run under platform/account locks.'}</li>
+                  <li>${lang() === 'zh' ? '任务完成后查看评论工作台、质量报告、失败门店和重试建议。' : 'Review workbench, quality report, failed stores and retry guidance after completion.'}</li>
+                </ol>
+              </section>
+              <section>
+                <h3>${lang() === 'zh' ? '异常处理规则' : 'Exception Handling'}</h3>
+                <ul>
+                  <li>${lang() === 'zh' ? '验证码/二次验证：触发人工门，暂停自动化，不绕过验证码。' : 'CAPTCHA/MFA: trigger human gate; pause automation; never bypass verification.'}</li>
+                  <li>${lang() === 'zh' ? '登录态失效：重新登录对应平台后从 checkpoint 续跑。' : 'Expired session: re-login and resume from checkpoint.'}</li>
+                  <li>${lang() === 'zh' ? '订单详情为空：检查详情弹窗/API 字段映射，再按失败订单重试。' : 'Missing order details: inspect detail modal/API mapping and retry failed order IDs.'}</li>
+                  <li>${lang() === 'zh' ? '图片为空：确认提取的是评论证据图，不是用户头像。' : 'Missing images: verify evidence-image selectors, not customer avatars.'}</li>
+                  <li>${lang() === 'zh' ? '页面结构变化：优先更新平台执行器选择器，再启用视觉导航兜底。' : 'Layout change: update platform executor selectors first, then use visual navigation fallback.'}</li>
+                </ul>
+              </section>
+              <section>
+                <h3>${lang() === 'zh' ? '生产检查结果' : 'Production Check'}</h3>
+                <ul>${checkRows || `<li>${lang() === 'zh' ? '暂无检查结果。' : 'No checks returned.'}</li>`}</ul>
+              </section>
+            </div>
+            <section class="heytea-guide-section">
+              <h3>${lang() === 'zh' ? '平台实时同步能力' : 'Platform Sync Capability'}</h3>
+              <div class="heytea-guide-table-wrap"><table class="heytea-guide-table"><thead><tr><th>${lang() === 'zh' ? '平台' : 'Platform'}</th><th>Executor</th><th>${lang() === 'zh' ? '订单详情' : 'Order Details'}</th><th>${lang() === 'zh' ? '图片URL' : 'Image URLs'}</th><th>${lang() === 'zh' ? '入口类型' : 'Entry'}</th><th>${lang() === 'zh' ? '任务模板' : 'Template'}</th><th>${lang() === 'zh' ? '最近评论' : 'Latest Reviews'}</th><th>${lang() === 'zh' ? '状态' : 'State'}</th></tr></thead><tbody>${platformRows || ''}</tbody></table></div>
+            </section>
+            <section class="heytea-guide-section">
+              <h3>${lang() === 'zh' ? '最近失败与重试建议' : 'Recent Failures & Retry Guidance'}</h3>
+              <ul>${failRows}</ul>
+              <p>${lang() === 'zh' ? '点击平台矩阵中的“诊断”可获取实时 AI 处置建议；若模型不可用，系统返回本地规则建议。' : 'Use Diagnose in Platform Matrix for real-time AI remediation; local rules are returned when model APIs are unavailable.'}</p>
+            </section>
+            <pre class="heytea-settings-output" id="heytea-production-output"></pre>
+          </div>`;
+        main.querySelectorAll('[data-operator-action]').forEach(button => button.addEventListener('click', async event => {
+          event.preventDefault();
+          event.stopPropagation();
+          const action = button.dataset.operatorAction;
+          const output = document.getElementById('heytea-production-output');
+          const writeOutput = value => { if (output) output.textContent = typeof value === 'string' ? value : JSON.stringify(value, null, 2); };
+          try {
+            if (action === 'settings') { location.href = '/stitch-static/safety_audit_global/code.html?view=settings'; return; }
+            if (action === 'download-support') { await exportVisible(); return; }
+            if (action === 'production-check') {
+              writeOutput(lang() === 'zh' ? '正在运行生产检查...' : 'Running production check...');
+              const result = await apiJson('/api/unified/production-check');
+              writeOutput(result);
+              return;
+            }
+            if (action === 'start-sync') {
+              writeOutput(lang() === 'zh' ? '正在启动全平台同步...' : 'Starting all-platform sync...');
+              const intervalSeconds = await getSyncIntervalSeconds();
+              const result = await apiJson('/api/unified/monitor/start', { method: 'POST', body: JSON.stringify({ days: selectedDays(), dry_run: false, interval_seconds: intervalSeconds }) });
+              writeOutput(result);
+              return;
+            }
+            if (action === 'stop-sync') {
+              const result = await apiJson('/api/unified/monitor/stop', { method: 'POST', body: '{}' });
+              writeOutput(result);
+            }
+          } catch (error) {
+            writeOutput(String(error.message || error));
+          }
+        }));
+      }
       return;
     }
     if (view !== 'settings') return;
@@ -2653,11 +2817,11 @@
       detail: texts.join('\n').slice(0, 12000),
     };
   }
-  async function ensureReviewTranslation(review, aside) {
+  async function ensureReviewTranslation(review, aside, force = false) {
     const node = aside.querySelector('[data-review-translation]');
     if (!node) return;
     const translated = reviewTranslationText(review);
-    if (translated) {
+    if (translated && !force) {
       node.textContent = translated;
       review.translated_review = translated;
       if (isMostlyChineseText(translated) && looksTraditionalChinese(translated)) {
@@ -2682,16 +2846,21 @@
     }
     const cacheKey = String(review.review_id || source.slice(0, 256));
     window.__heyteaTranslationCache = window.__heyteaTranslationCache || {};
-    if (window.__heyteaTranslationCache[cacheKey]) {
+    if (force) {
+      delete window.__heyteaTranslationCache[cacheKey];
+      review.translated_review = '';
+      review.cn_translation = '';
+    }
+    if (!force && window.__heyteaTranslationCache[cacheKey]) {
       review.translated_review = window.__heyteaTranslationCache[cacheKey];
       node.textContent = review.translated_review;
       return;
     }
-    node.textContent = lang() === 'zh' ? '翻译中…' : 'Translating…';
+    node.textContent = lang() === 'zh' ? '翻译中...' : 'Translating...';
     try {
       const result = await apiJson('/api/unified/translate', {
         method: 'POST',
-        body: JSON.stringify({ text: source, review_id: review.review_id || '', force_simplified: true }),
+        body: JSON.stringify({ text: source, review_id: review.review_id || '', force_simplified: true, force }),
       });
       if (result && result.translated) {
         review.translated_review = String(result.translated);
@@ -2735,8 +2904,12 @@
         ${orderDetailText && orderDetailText !== '-' ? `<pre class="mt-2 border border-outline-variant bg-surface-container-lowest p-3 whitespace-pre-wrap text-body-sm">${escapeHtml(orderDetailText)}</pre>` : (!items.length ? `<pre class="border border-outline-variant bg-surface-container-lowest p-3 whitespace-pre-wrap text-body-sm">-</pre>` : '')}
       </div>
       <div><h4 class="font-label-caps text-label-caps text-secondary uppercase mb-2 border-b border-outline-variant pb-1 flex justify-between">${escapeHtml(translatePhrase('Raw API Payload'))}<span class="font-data-mono text-data-mono text-secondary">${escapeHtml(review.source_file || '')}</span></h4><div class="bg-primary-container text-[#A3DEFE] p-3 font-data-mono text-data-mono text-[11px] overflow-x-auto border border-primary rounded-none"><pre class="m-0"><code>${escapeHtml(JSON.stringify(review.raw_json || review, null, 2))}</code></pre></div></div>
-    </div><div class="p-container-padding border-t border-outline-variant bg-[#F5F5F5] mt-auto"><button type="button" data-export-review="true" class="w-full bg-surface-container-lowest text-primary border border-primary py-2 px-4 rounded-none font-label-caps text-label-caps uppercase hover:bg-surface-container-low transition-colors flex justify-center items-center gap-2"><span class="material-symbols-outlined text-[16px]">download</span>${escapeHtml(translatePhrase('Export Record'))}</button></div>`;
+    </div><div class="p-container-padding border-t border-outline-variant bg-[#F5F5F5] mt-auto grid grid-cols-2 gap-2"><button type="button" data-force-retranslate="true" class="bg-primary text-on-primary border border-primary py-2 px-3 rounded-none font-label-caps text-label-caps uppercase hover:opacity-90 transition-colors flex justify-center items-center gap-2"><span class="material-symbols-outlined text-[16px]">translate</span>${escapeHtml(lang() === 'zh' ? '强制重翻译' : 'Retranslate')}</button><button type="button" data-export-review="true" class="bg-surface-container-lowest text-primary border border-primary py-2 px-3 rounded-none font-label-caps text-label-caps uppercase hover:bg-surface-container-low transition-colors flex justify-center items-center gap-2"><span class="material-symbols-outlined text-[16px]">download</span>${escapeHtml(translatePhrase('Export Record'))}</button></div>`;
     aside.querySelector('[data-export-review]')?.addEventListener('click', () => download(`review-${review.review_id || 'record'}.json`, JSON.stringify(review, null, 2), 'application/json;charset=utf-8'));
+    aside.querySelector('[data-force-retranslate]')?.addEventListener('click', async () => {
+      await ensureReviewTranslation(review, aside, true);
+      notify(lang() === 'zh' ? '已强制重翻译当前评论' : 'Current review retranslated');
+    });
     ensureReviewTranslation(review, aside);
   }
   function filteredWorkbenchReviews() {

@@ -15,8 +15,8 @@
   },
   "options": {
     "browser_channel": "msedge",
-    "manual_login": true,
+    "manual_login": false,
     "max_stores": 0,
-    "headless": false
+    "headless": true
   }
 }

@@ -154,7 +154,17 @@ _BASIC_T2S_CHAR_MAP = str.maketrans(
 init_db()
 
 if STITCH_STATIC_DIR.exists():
-    nicegui_app.add_static_files("/stitch-static", STITCH_STATIC_DIR)
+    nicegui_app.add_static_files("/stitch-static", STITCH_STATIC_DIR, max_cache_age=0)
+
+
+@nicegui_app.middleware("http")
+async def stitch_static_no_cache(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/stitch-static/"):
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
 
 
 def _safe_platform_data(data: dict) -> dict:
@@ -1229,33 +1239,6 @@ async def api_unified_platform_diagnose(request: Request) -> dict:
 
     ai_enabled = bool((body or {}).get("use_ai", True))
     ai_error = ""
-    fallback_ai.update(
-        {
-            "summary": f"共分析 {len(reviews)} 条评论，识别风险评论 {risk_reviews} 条。",
-            "key_findings": [
-                f"高频词前3：{', '.join(item['keyword'] for item in keywords[:3]) if keywords else '暂无'}",
-                f"聚类Top：{max(clusters, key=lambda item: item['count'])['cluster'] if clusters else '暂无'}",
-            ],
-            "root_causes": [
-                "高峰时段配送履约波动",
-                "部分门店出品与包装一致性不足",
-                "异常评论处理时效不稳定",
-            ],
-            "actions": [
-                "优先处理近24小时低评分且带图评论，形成门店整改单",
-                "对高风险关键词门店启用每日复采与复核",
-                "按平台建立重试策略：5/15/30 分钟退避并记录失败证据",
-            ],
-            "trend_observation": "评论量与风险评论数存在波动，建议按小时关注高风险门店。",
-            "lifecycle_stage": "monitoring",
-            "complaint_clusters": [item["cluster"] for item in clusters if int(item.get("count") or 0) > 0][:5],
-            "food_safety_issues": [
-                item["keyword"]
-                for item in keywords
-                if any(token in item["keyword"] for token in ("异物", "发霉", "变质", "mold", "spoiled", "hair"))
-            ][:8],
-        }
-    )
 
     ai_used = False
     if ai_enabled:
@@ -1602,12 +1585,13 @@ async def api_unified_translate(request: Request) -> dict:
     body = await request.json()
     text = str((body or {}).get("text") or "").strip()
     force_simplified = bool((body or {}).get("force_simplified"))
+    force = bool((body or {}).get("force"))
     if not text:
         return {"ok": False, "error": "empty text", "translated": ""}
     if _is_mostly_chinese(text):
         zh_cache_key = f"zh:{'force' if force_simplified else 'auto'}:{text[:2000]}"
         with _TRANSLATION_CACHE_LOCK:
-            zh_cached = _TRANSLATION_CACHE.get(zh_cache_key)
+            zh_cached = None if force else _TRANSLATION_CACHE.get(zh_cache_key)
         if zh_cached:
             return {
                 "ok": True,
@@ -1631,7 +1615,7 @@ async def api_unified_translate(request: Request) -> dict:
         }
     cache_key = text[:2000]
     with _TRANSLATION_CACHE_LOCK:
-        cached = _TRANSLATION_CACHE.get(cache_key)
+        cached = None if force else _TRANSLATION_CACHE.get(cache_key)
     if cached:
         return {"ok": True, "translated": cached, "cached": True, "detected_language": "non_zh"}
     try:
@@ -1934,6 +1918,69 @@ async def api_unified_monitor_start(request: Request) -> dict:
         parallel_workers=int(body.get("parallel_workers", default_workers)),
     )
     return {"ok": True, "monitor": state}
+
+
+@nicegui_app.post("/api/unified/monitor/run-once")
+async def api_unified_monitor_run_once(request: Request) -> dict:
+    body = await request.json()
+    templates = body.get("templates") or body.get("task_templates") or [path.name for path in _task_files()]
+    templates = [str(item) for item in templates if str(item).endswith(".json")]
+    if not templates:
+        return {"ok": False, "error": "no task templates provided"}
+    try:
+        time_range = validate_week_range(
+            start_date=str(body.get("start_date") or ""),
+            end_date=str(body.get("end_date") or ""),
+            days=int(body["days"]) if body.get("days") is not None else 7,
+        )
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+
+    saved_settings = load_settings(include_secrets=False)
+    processing_settings = saved_settings.get("processing") or {}
+    default_workers = int((processing_settings.get("parallel_workers")) or 1)
+    dry_run = bool(body.get("dry_run", False))
+    parallel_workers = int(body.get("parallel_workers", default_workers))
+    COORDINATOR.configure_limits(
+        real_concurrency=int(processing_settings.get("real_concurrency") or 1),
+        dry_run_concurrency=int(processing_settings.get("dry_run_concurrency") or 8),
+    )
+    EVENT_BUS.publish(
+        "info",
+        "One-shot platform sync queued",
+        f"{len(templates)} task template(s), dry_run={dry_run}, workers={parallel_workers}",
+        {"templates": templates, "time_range": time_range.__dict__},
+    )
+
+    def _run_once_background() -> None:
+        try:
+            results = SYNC_MONITOR.run_once(
+                TASK_DIR,
+                templates,
+                dry_run=dry_run,
+                time_range=time_range,
+                parallel_workers=parallel_workers,
+            )
+            ok_count = sum(1 for item in results if item.get("ok"))
+            EVENT_BUS.publish(
+                "success" if ok_count == len(results) else "warning",
+                "One-shot platform sync completed",
+                f"{ok_count}/{len(results)} task template(s) completed successfully",
+                {"results": results[-20:]},
+            )
+        except Exception as exc:
+            EVENT_BUS.publish("error", "One-shot platform sync failed", str(exc), {"templates": templates})
+
+    threading.Thread(target=_run_once_background, daemon=True).start()
+    return {
+        "ok": True,
+        "accepted": True,
+        "running": True,
+        "dry_run": dry_run,
+        "templates": templates,
+        "time_range": time_range.__dict__,
+        "message": "one-shot platform sync started in background",
+    }
 
 
 @nicegui_app.post("/api/unified/monitor/stop")

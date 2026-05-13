@@ -1,0 +1,25 @@
+{
+  "platform": "google_maps",
+  "country": "美国",
+  "stores": [
+    "21050100"
+  ],
+  "store_registry": "C:\\Users\\Administrator\\Desktop\\foodreview_crawler\\data\\store_registry.json",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 10,
+  "mode": "auto",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_google_maps_single_store_sample"
+  },
+  "options": {
+    "shop_name": "21050100",
+    "browser_channel": "msedge",
+    "max_scrolls": 4,
+    "headless": false,
+    "timeout": 1200
+  }
+}

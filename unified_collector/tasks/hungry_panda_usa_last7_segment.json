@@ -1,0 +1,21 @@
+{
+  "platform": "hungry_panda",
+  "country": "usa",
+  "stores": "all",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 100,
+  "mode": "auto",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_hungry_panda_usa_segment"
+  },
+  "options": {
+    "phone_code": "+86",
+    "start_index": 0,
+    "limit": 5,
+    "headless": true
+  }
+}

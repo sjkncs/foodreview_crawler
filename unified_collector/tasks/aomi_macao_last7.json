@@ -1,0 +1,22 @@
+{
+  "platform": "aomi",
+  "account": "default",
+  "country": "mo",
+  "stores": "all",
+  "time_range": {
+    "type": "last_days",
+    "days": 7
+  },
+  "max_reviews": 100,
+  "mode": "auto",
+  "safe_mode": true,
+  "output": {
+    "output_prefix": "unified_aomi_macao_last7"
+  },
+  "options": {
+    "portal_url": "",
+    "headless": false,
+    "manual_login": true,
+    "max_pages": 20
+  }
+}
