@@ -10,6 +10,7 @@ import os
 import re
 import sys
 import threading
+import time
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -52,6 +53,8 @@ ORDER_ID_PATTERNS = (
 _TRANSLATION_CACHE: dict[str, str] = {}
 _TRANSLATION_CACHE_LOCK = threading.RLock()
 _TRANSLATION_CACHE_MAX = 2000
+_SAFE_REGISTRY_CACHE: dict[str, Any] = {"mtime": 0.0, "data": None}
+_SAFE_REGISTRY_LOCK = threading.RLock()
 
 try:
     from opencc import OpenCC  # type: ignore
@@ -197,6 +200,11 @@ def _safe_platform_data(data: dict) -> dict:
 def _load_safe_registry() -> dict:
     if not STORE_REGISTRY_PATH.exists():
         return {"schema_version": 1, "store_count": 0, "stores": [], "platform_counts": {}}
+    mtime = STORE_REGISTRY_PATH.stat().st_mtime
+    with _SAFE_REGISTRY_LOCK:
+        cached = _SAFE_REGISTRY_CACHE.get("data")
+        if cached is not None and float(_SAFE_REGISTRY_CACHE.get("mtime") or 0) == mtime:
+            return cached
     raw = json.loads(STORE_REGISTRY_PATH.read_text(encoding="utf-8"))
     stores = []
     platform_counts: dict[str, int] = {}
@@ -217,13 +225,17 @@ def _load_safe_registry() -> dict:
                 "platforms": platforms,
             }
         )
-    return {
+    data = {
         "schema_version": raw.get("schema_version", 1),
         "store_count": len(stores),
         "stores": stores,
         "platform_counts": dict(sorted(platform_counts.items())),
         "generated_at": raw.get("generated_at", ""),
     }
+    with _SAFE_REGISTRY_LOCK:
+        _SAFE_REGISTRY_CACHE["mtime"] = mtime
+        _SAFE_REGISTRY_CACHE["data"] = data
+    return data
 
 
 def _task_files() -> list[Path]:
@@ -1163,22 +1175,24 @@ def _is_non_review_page_text(record: dict[str, Any]) -> bool:
     return (not has_core_review_evidence) and any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in site_chrome_patterns)
 
 
-def _read_real_reviews(limit: int = 200) -> list[dict[str, Any]]:
+def _read_real_reviews(limit: int = 200, include_legacy_exports: bool = False) -> list[dict[str, Any]]:
     records_by_key: dict[str, dict[str, Any]] = {}
     fuzzy_buckets: dict[str, list[str]] = {}
     files = []
     if EXPORT_DIR.exists():
-        files.extend(sorted(RUNS_DIR.glob("*/normalized_reviews.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True) if RUNS_DIR.exists() else [])
-        files.extend(sorted([p for p in EXPORT_DIR.rglob("*.json") if "runs" not in p.parts], key=lambda p: p.stat().st_mtime, reverse=True))
+        normalized_files = sorted(RUNS_DIR.glob("*/normalized_reviews.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True) if RUNS_DIR.exists() else []
+        files.extend(normalized_files)
+        if include_legacy_exports or not normalized_files:
+            files.extend(sorted([p for p in EXPORT_DIR.rglob("*.json") if "runs" not in p.parts], key=lambda p: p.stat().st_mtime, reverse=True))
     for path in files:
         try:
             if path.suffix == ".jsonl":
-                lines = path.read_text(encoding="utf-8-sig", errors="replace").splitlines()
                 payload = {"run_id": path.parent.name}
-                rows = [json.loads(line) for line in lines if line.strip()]
+                rows_iter = (json.loads(line) for line in path.open("r", encoding="utf-8-sig", errors="replace") if line.strip())
             else:
                 payload, rows = _extract_reviews_from_payload(json.loads(path.read_text(encoding="utf-8-sig", errors="replace")))
-            for index, raw in enumerate(rows, start=1):
+                rows_iter = iter(rows)
+            for index, raw in enumerate(rows_iter, start=1):
                 record = _normalize_ui_review(raw, payload, path, index)
                 if not any(record.get(field) for field in ("review", "order_id", "order_detail", "ordered_items", "image_urls")):
                     continue
@@ -1192,6 +1206,8 @@ def _read_real_reviews(limit: int = 200) -> list[dict[str, Any]]:
                 else:
                     records_by_key[key] = record
                     _remember_review_dedupe_key(fuzzy_buckets, record, key)
+                if len(records_by_key) >= limit * 3:
+                    break
         except Exception:
             continue
         if len(records_by_key) >= limit * 3:
@@ -1821,27 +1837,41 @@ async def _build_ai_insight_v2(
 
 
 @nicegui_app.get("/api/unified/status")
-def api_unified_status() -> dict:
+def api_unified_status(compact: bool = False) -> dict:
     registry = _load_safe_registry()
-    exports = [
-        {
-            "name": path.name,
-            "path": str(path.relative_to(ROOT)),
-            "bytes": path.stat().st_size,
-            "mtime": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
+    if compact:
+        exports = []
+        platforms = {
+            key: {
+                "name": capability.name,
+                "canonical_name": capability.canonical_name,
+                "supports_order_detail": capability.supports_order_detail,
+                "supports_review_images": capability.supports_review_images,
+                "human_gate_required": capability.human_gate_required,
+            }
+            for key, capability in PLATFORM_CAPABILITIES.items()
         }
-        for path in sorted(
-            [p for p in EXPORT_DIR.rglob("*") if p.is_file()] if EXPORT_DIR.exists() else [],
-            key=lambda item: item.stat().st_mtime,
-            reverse=True,
-        )[:20]
-    ]
+    else:
+        exports = [
+            {
+                "name": path.name,
+                "path": str(path.relative_to(ROOT)),
+                "bytes": path.stat().st_size,
+                "mtime": datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds"),
+            }
+            for path in sorted(
+                [p for p in EXPORT_DIR.rglob("*") if p.is_file()] if EXPORT_DIR.exists() else [],
+                key=lambda item: item.stat().st_mtime,
+                reverse=True,
+            )[:20]
+        ]
+        platforms = {key: capability.to_dict() for key, capability in PLATFORM_CAPABILITIES.items()}
     return {
         "ok": True,
         "now": datetime.now().isoformat(timespec="seconds"),
         "store_count": registry["store_count"],
         "platform_counts": registry["platform_counts"],
-        "platforms": {key: capability.to_dict() for key, capability in PLATFORM_CAPABILITIES.items()},
+        "platforms": platforms,
         "tasks": [path.name for path in _task_files()],
         "exports": exports,
         "runs_api": "/api/unified/runs",
@@ -2113,6 +2143,8 @@ def api_unified_reviews(
     has_image: bool = False,
     has_order: bool = False,
     limit: int = 200,
+    compact: bool = True,
+    include_raw: bool = False,
 ) -> dict:
     try:
         if str(start_date or "").strip() and str(end_date or "").strip():
@@ -2127,7 +2159,8 @@ def api_unified_reviews(
     country_query = _normalize_region_name(country).lower().strip()
     store_query = store.lower().strip()
     filtered = []
-    for record in _read_real_reviews(limit=max(limit, 300)):
+    scan_limit = max(80, min(max(int(limit or 200) * 4, int(limit or 200)), 1200))
+    for record in _read_real_reviews(limit=scan_limit):
         if platform_query and platform_query not in str(record.get("platform", "")).lower():
             continue
         if country_query and country_query not in _normalize_region_name(str(record.get("country", ""))).lower():
@@ -2142,7 +2175,7 @@ def api_unified_reviews(
         parsed_date = _parse_review_date_text(review_time)
         if parsed_date and (parsed_date < start_bound or parsed_date > end_bound):
             continue
-        filtered.append(record)
+        filtered.append(_compact_review_record(record, include_raw=include_raw) if compact else record)
         if len(filtered) >= max(1, min(limit, 1000)):
             break
     return {
@@ -2152,6 +2185,44 @@ def api_unified_reviews(
         "source": "exports_only_real_records",
         "reviews": filtered,
     }
+
+
+def _compact_review_record(record: dict[str, Any], include_raw: bool = False) -> dict[str, Any]:
+    keep_fields = (
+        "review_id",
+        "run_id",
+        "platform",
+        "country",
+        "account",
+        "store",
+        "store_id",
+        "rating",
+        "sub_ratings",
+        "review",
+        "review_language",
+        "translated_review",
+        "customer",
+        "review_time",
+        "order_id",
+        "ordered_items",
+        "order_total",
+        "order_detail",
+        "image_urls",
+        "source",
+        "source_file",
+        "quality_flags",
+        "review_type",
+        "reply_status",
+        "has_order",
+        "has_image",
+    )
+    compacted = {field: record.get(field) for field in keep_fields if field in record}
+    detail = str(compacted.get("order_detail") or "")
+    if len(detail) > 4000:
+        compacted["order_detail"] = detail[:4000] + "…"
+    if include_raw and record.get("raw_json"):
+        compacted["raw_json"] = record.get("raw_json")
+    return compacted
 
 
 @nicegui_app.get("/api/unified/insight")
@@ -2448,13 +2519,15 @@ async def api_unified_quality_report(
 ) -> dict:
     safe_days = 30 if int(days or 7) == 30 else 7
     safe_limit = max(300, min(int(limit or 1600), 4000))
-    status = api_unified_status()
+    status = api_unified_status(compact=True)
     reviews_payload = api_unified_reviews(
         platform=platform,
         days=safe_days,
         start_date=start_date,
         end_date=end_date,
         limit=safe_limit,
+        compact=True,
+        include_raw=False,
     )
     knowledge_payload = api_unified_knowledge(limit=30)
     settings_payload = api_unified_settings()

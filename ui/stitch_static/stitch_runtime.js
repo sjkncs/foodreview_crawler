@@ -2698,7 +2698,7 @@
       const requestedQualityPlatformParam = requestedQualityPlatform
         ? `&platform=${encodeURIComponent(requestedQualityPlatform)}`
         : '';
-      const qualityTimeoutMs = 3200;
+      const qualityTimeoutMs = 9000;
       const main = document.querySelector('main');
       if (!main) return;
       let panel = document.getElementById('heytea-quality-extended');
@@ -2713,7 +2713,7 @@
       applyQualityFocus(panel);
       const endpointErrors = [];
       const composite = await Promise.race([
-        apiJsonSoft(`/api/unified/quality-report?days=${days}&limit=1600${requestedQualityPlatformParam}`, null),
+        apiJsonSoft(`/api/unified/quality-report?days=${days}&limit=600${requestedQualityPlatformParam}`, null),
         new Promise(resolve => setTimeout(() => resolve({ ok: false, error: `quality-report timeout ${qualityTimeoutMs}ms`, data: null }), qualityTimeoutMs)),
       ]);
       if (!isActiveQualityRender(renderSeq)) return;
@@ -2735,9 +2735,9 @@
       } else {
         if (!composite.ok) endpointErrors.push(`quality-report: ${composite.error}`);
         const [statusRes, reviewsRes, insightRes, knowledgeRes, settingsRes] = await Promise.all([
-          apiJsonSoft('/api/unified/status', { now: new Date().toISOString(), coordinator: { history: [] }, platforms: {} }),
-          apiJsonSoft(`/api/unified/reviews?days=${days}&limit=500${requestedQualityPlatformParam}`, { reviews: [] }),
-          apiJsonSoft(`/api/unified/insight?days=${days}&limit=1600${requestedQualityPlatformParam}`, null),
+          apiJsonSoft('/api/unified/status?compact=true', { now: new Date().toISOString(), coordinator: { history: [] }, platforms: {} }),
+          apiJsonSoft(`/api/unified/reviews?days=${days}&limit=300&compact=true${requestedQualityPlatformParam}`, { reviews: [] }),
+          apiJsonSoft(`/api/unified/insight?days=${days}&limit=600${requestedQualityPlatformParam}`, null),
           apiJsonSoft('/api/unified/knowledge?limit=30', { entries: [] }),
           apiJsonSoft('/api/unified/settings', { settings: {} }),
         ]);
