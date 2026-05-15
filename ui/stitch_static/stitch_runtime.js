@@ -206,6 +206,76 @@
   const lang = () => localStorage.getItem('heytea_lang') || 'en';
   const t = key => (i18n[lang()] || i18n.en)[key] || i18n.en[key] || key;
   const tz = () => localStorage.getItem('heytea_timezone') || 'Asia/Shanghai';
+  const formatLocalDateToken = date => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  const tokenToLocalDate = token => {
+    const match = String(token || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+    const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    date.setHours(0, 0, 0, 0);
+    return Number.isNaN(date.getTime()) ? null : date;
+  };
+  const beijingTodayToken = () => {
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Shanghai',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const parts = Object.fromEntries(formatter.formatToParts(new Date()).filter(p => p.type !== 'literal').map(p => [p.type, p.value]));
+    return `${parts.year}-${parts.month}-${parts.day}`;
+  };
+  const isoDateToken = value => {
+    const date = value instanceof Date ? new Date(value) : new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setHours(0, 0, 0, 0);
+    return formatLocalDateToken(date);
+  };
+  const defaultDashboardRange = (days = 7) => {
+    const safeDays = Math.max(1, Math.min(30, Number(days || 7)));
+    const end = tokenToLocalDate(beijingTodayToken()) || new Date();
+    const start = new Date(end);
+    start.setDate(end.getDate() - safeDays + 1);
+    return { start: isoDateToken(start), end: isoDateToken(end), span: safeDays };
+  };
+  const dashboardRangeState = (days = 7) => {
+    const fallback = defaultDashboardRange(days);
+    const mode = String(localStorage.getItem('heytea_dashboard_range_mode') || '').trim();
+    if (mode !== 'custom') {
+      return fallback;
+    }
+    let start = String(localStorage.getItem('heytea_dashboard_range_start') || '').trim();
+    let end = String(localStorage.getItem('heytea_dashboard_range_end') || '').trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) return fallback;
+    const startDate = new Date(`${start}T00:00:00`);
+    const endDate = new Date(`${end}T00:00:00`);
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return fallback;
+    let safeStart = startDate;
+    let safeEnd = endDate;
+    const today = tokenToLocalDate(beijingTodayToken()) || new Date();
+    if (safeStart > safeEnd) [safeStart, safeEnd] = [safeEnd, safeStart];
+    if (safeEnd > today) safeEnd = today;
+    const oldestAllowedEnd = new Date(today);
+    oldestAllowedEnd.setDate(today.getDate() - 29);
+    if (safeEnd < oldestAllowedEnd) {
+      localStorage.setItem('heytea_dashboard_range_mode', 'rolling');
+      return fallback;
+    }
+    const span = Math.max(1, Math.floor((safeEnd.getTime() - safeStart.getTime()) / 86400000) + 1);
+    if (span > 30) {
+      safeStart = new Date(safeEnd);
+      safeStart.setDate(safeEnd.getDate() - 29);
+    }
+    return {
+      start: isoDateToken(safeStart),
+      end: isoDateToken(safeEnd),
+      span: Math.max(1, Math.floor((safeEnd.getTime() - safeStart.getTime()) / 86400000) + 1),
+    };
+  };
+  const persistDashboardRange = (start, end, mode = 'custom') => {
+    localStorage.setItem('heytea_dashboard_range_start', String(start || ''));
+    localStorage.setItem('heytea_dashboard_range_end', String(end || ''));
+    localStorage.setItem('heytea_dashboard_range_mode', mode === 'custom' ? 'custom' : 'rolling');
+  };
   const selectedDays = () => {
     const days = parseInt(localStorage.getItem('heytea_days') || '7', 10);
     return days === 30 ? 30 : 7;
@@ -216,11 +286,18 @@
       [/中国香港特别行政区|香港特别行政区|香港/g, '中国香港'],
       [/中国澳门特别行政区|澳门特别行政区|澳門特別行政區|澳门|澳門/g, '中国澳门'],
       [/中国台湾省|台灣地區|台湾地区|台灣|台湾/g, '中国台湾'],
+      [/\bHong[\s_-]*Kong\b/gi, '中国香港'],
+      [/\bMacau\b/gi, '中国澳门'],
+      [/\bMacao\b/gi, '中国澳门'],
+      [/\bTaiwan\b/gi, '中国台湾'],
       [/\bHK\b/g, '中国香港'],
       [/\bMO\b/g, '中国澳门'],
       [/\bTW\b/g, '中国台湾'],
     ],
     en: [
+      [/中国香港特别行政区|香港特别行政区|香港/g, 'China Hong Kong'],
+      [/中国澳门特别行政区|澳门特别行政区|澳門特別行政區|澳门|澳門/g, 'China Macau'],
+      [/中国台湾省|台灣地區|台湾地区|台灣|台湾/g, 'China Taiwan'],
       [/\bHong\s*Kong\b/gi, 'China Hong Kong'],
       [/\bMacau\b/gi, 'China Macau'],
       [/\bMacao\b/gi, 'China Macau'],
@@ -341,13 +418,9 @@
     return `${parts.year}-${parts.month}-${parts.day}`;
   };
   const liveRangeLabel = (days = selectedDays(), zone = tz()) => {
-    const end = new Date();
-    const start = new Date(end);
-    start.setDate(end.getDate() - Math.max(1, Number(days || 7)) + 1);
-    const startText = zonedDateString(start, zone);
-    const endText = zonedDateString(end, zone);
-    if (lang() === 'zh') return `近 ${days} 天（${startText} 至 ${endText}）`;
-    return `Last ${days} Days (${startText} to ${endText})`;
+    const range = dashboardRangeState(days);
+    if (lang() === 'zh') return `近 ${range.span} 天（${range.start} 至 ${range.end}）`;
+    return `Last ${range.span} Days (${range.start} to ${range.end})`;
   };
   const updateDynamicDateLabels = () => {
     const days = selectedDays();
@@ -374,9 +447,29 @@
   const setSelectedDays = days => {
     const safeDays = parseInt(days, 10) === 30 ? 30 : 7;
     localStorage.setItem('heytea_days', String(safeDays));
+    const range = defaultDashboardRange(safeDays);
+    persistDashboardRange(range.start, range.end, 'rolling');
     updateDynamicDateLabels();
     return safeDays;
   };
+  const nextDashboardRenderSeq = () => {
+    const seq = Number(window.__heyteaDashboardRenderSeq || 0) + 1;
+    window.__heyteaDashboardRenderSeq = seq;
+    return seq;
+  };
+  const isActiveDashboardRender = seq => (
+    pageByPath() === 'dashboard'
+    && Number(window.__heyteaDashboardRenderSeq || 0) === Number(seq)
+  );
+  const nextQualityRenderSeq = () => {
+    const seq = Number(window.__heyteaQualityRenderSeq || 0) + 1;
+    window.__heyteaQualityRenderSeq = seq;
+    return seq;
+  };
+  const isActiveQualityRender = seq => (
+    pageByPath() === 'quality_report'
+    && Number(window.__heyteaQualityRenderSeq || 0) === Number(seq)
+  );
   function pageByPath() {
     const path = location.pathname;
     const hit = routes.find(([key, en, zh, icon, href]) => path === href || path.endsWith(href.replace('/stitch-static/', '')));
@@ -562,6 +655,15 @@
     if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
     return await response.json();
   }
+  function arrayBufferToBase64(buffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    const chunk = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunk) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+    }
+    return btoa(binary);
+  }
   async function apiJsonSoft(url, fallback = null, options = null) {
     try {
       const data = await apiJson(url, options || undefined);
@@ -660,6 +762,7 @@
     if (value.includes('running') || value.includes('active')) return { text: translatePhrase('Running'), cls: 'bg-[#ff9800] text-primary' };
     if (value.includes('pending') || value.includes('queued')) return { text: translatePhrase('Pending'), cls: 'bg-surface-variant text-primary border border-outline-variant' };
     if (value.includes('partial')) return { text: translatePhrase('Partial'), cls: 'bg-[#ff9800] text-primary' };
+    if (value.includes('no reviews') || value.includes('empty')) return { text: lang() === 'zh' ? '无评论' : 'No Reviews', cls: 'bg-surface-variant text-primary border border-outline-variant' };
     return { text: translatePhrase('Failed'), cls: 'bg-error text-on-error' };
   }
   function formatIsoInZone(isoText, zone = tz()) {
@@ -691,9 +794,14 @@
     if (pageByPath() !== 'collection_tasks') return;
     if (!force && window.__heyteaCollectionAt && Date.now() - window.__heyteaCollectionAt < 4000) return;
     try {
-      const [status, runsPayload] = await Promise.all([apiJson('/api/unified/status'), apiJson('/api/unified/runs?limit=50')]);
+      const [status, runsPayload, failuresPayload] = await Promise.all([
+        apiJson('/api/unified/status'),
+        apiJson('/api/unified/runs?limit=50'),
+        apiJson('/api/unified/failures?limit=30').catch(() => ({ failures: [], error_events: [] })),
+      ]);
       window.__heyteaCollectionAt = Date.now();
       const coordinator = status.coordinator || {};
+      const taskFailures = Array.isArray(failuresPayload.failures) ? failuresPayload.failures : [];
       const runMap = new Map((runsPayload.runs || []).map(run => [run.run_id, run]));
       const rows = [];
       (coordinator.active || []).forEach(active => {
@@ -727,13 +835,19 @@
       });
       (runsPayload.runs || []).forEach(run => {
         if (rows.some(row => row.id === run.run_id)) return;
+        const runHealth = String(run.health_status || '').toLowerCase();
+        let runStatus = (run.last_stage || '').toLowerCase().includes('finish') ? 'Success' : 'Pending';
+        if (runHealth === 'failed') runStatus = 'Failed';
+        else if (runHealth === 'partial') runStatus = 'Partial';
+        else if (runHealth === 'empty') runStatus = 'No Reviews';
+        else if (runHealth === 'running') runStatus = 'Running';
         rows.push({
           id: run.run_id || '-',
           platform: run.platform ? platformLabel(run.platform) : '-',
           geo: run.account || '-',
           scope: 'Run Artifact',
           mode: 'Immediate',
-          status: (run.last_stage || '').toLowerCase().includes('finish') ? 'Success' : 'Pending',
+          status: runStatus,
           extracted: run.review_count ?? '-',
           failed: run.error_count ?? '-',
           when: run.updated_at || '',
@@ -800,6 +914,51 @@
         cards[2].textContent = String(failedRuns);
         cards[3].textContent = `${((successRuns / totalRuns) * 100).toFixed(1)}%`;
       }
+      const main = document.querySelector('main');
+      if (main) {
+        let failurePanel = document.getElementById('heytea-task-failure-panel');
+        if (!failurePanel) {
+          failurePanel = document.createElement('section');
+          failurePanel.id = 'heytea-task-failure-panel';
+          failurePanel.className = 'mt-4 bg-surface-container-lowest border border-outline p-4 space-y-3';
+          const table = main.querySelector('table');
+          (table?.closest('section') || main).after(failurePanel);
+        }
+        const failureRows = taskFailures.slice(0, 8).map(item => {
+          const suggestions = (item.retry_suggestions || []).slice(0, 3).map(text => `<li>${escapeHtml(translateDynamicText(text))}</li>`).join('');
+          const errors = (item.errors || []).slice(0, 2).map(text => `<div class="text-[11px] text-error break-all">${escapeHtml(text)}</div>`).join('');
+          return `<div class="border border-outline-variant p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="font-title-sm text-primary">${escapeHtml(platformLabel(item.platform || item.platform_label || '-'))} · ${escapeHtml(String(item.account || '-'))}</div>
+                <div class="text-[11px] text-secondary font-data-mono">${escapeHtml(String(item.run_id || '-'))} · ${escapeHtml(formatIsoInZone(item.updated_at || ''))}</div>
+              </div>
+              <button type="button" class="px-2 py-1 border border-outline-variant text-primary text-body-sm" data-failure-diagnose="${escapeHtml(item.platform || '')}">${escapeHtml(lang() === 'zh' ? '诊断' : 'Diagnose')}</button>
+            </div>
+            ${errors || `<div class="text-[11px] text-secondary">${escapeHtml(lang() === 'zh' ? '无明确错误体，按空结果/字段缺失处理。' : 'No explicit error body; treat as empty result or missing fields.')}</div>`}
+            <div class="mt-2 text-body-sm text-secondary">${escapeHtml(lang() === 'zh' ? '重试建议' : 'Retry suggestions')}</div>
+            <ul class="list-disc pl-5 text-body-sm text-secondary">${suggestions || `<li>${escapeHtml(lang() === 'zh' ? '重新检查登录态、日期筛选和只读详情入口。' : 'Recheck session, date filter and read-only detail entry.')}</li>`}</ul>
+          </div>`;
+        }).join('');
+        failurePanel.innerHTML = `
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <h3 class="font-title-sm text-title-sm text-primary">${escapeHtml(lang() === 'zh' ? '失败门店 / 平台重试清单' : 'Failed Stores / Platform Retry Queue')}</h3>
+              <p class="text-body-sm text-secondary">${escapeHtml(lang() === 'zh' ? '由正式任务运行结果自动回填；用于人工门、重试与平台连接排障。' : 'Auto-filled from real task runs for manual gates, retries and connectivity triage.')}</p>
+            </div>
+            <span class="font-data-mono text-data-mono text-secondary">${Number(taskFailures.length || 0)}</span>
+          </div>
+          <div class="space-y-2">${failureRows || `<div class="text-body-sm text-secondary">${escapeHtml(lang() === 'zh' ? '暂无失败项。' : 'No failed items.')}</div>`}</div>`;
+        failurePanel.querySelectorAll('[data-failure-diagnose]').forEach(button => button.addEventListener('click', async () => {
+          const platform = button.dataset.failureDiagnose || '';
+          try {
+            const result = await apiJson('/api/unified/platform-diagnose', { method: 'POST', body: JSON.stringify({ platform, use_ai: false }) });
+            showModal(lang() === 'zh' ? '平台诊断' : 'Platform Diagnosis', JSON.stringify(result, null, 2));
+          } catch (error) {
+            showModal(lang() === 'zh' ? '平台诊断失败' : 'Platform Diagnosis Failed', String(error.message || error));
+          }
+        }));
+      }
     } catch (error) {
       notify(`Collection task refresh failed: ${error.message || error}`);
     }
@@ -833,7 +992,7 @@
     openrice: { label: 'OpenRice', short: 'OpenRice', icon: 'restaurant', url: 'https://www.openrice.com/zh/hongkong/restaurants?chainId=10006678&tabIndex=0' },
     mfood: { label: 'Mfood', short: 'Mfood', icon: 'ramen_dining', url: 'https://merchant.o2o.mfoodapp.com/#/appraise/tackout' },
     dianping: { label: 'Dianping', short: 'Dianping', icon: 'reviews', url: 'https://www.dianping.com' },
-    aomi: { label: 'Aomi', short: 'Aomi', icon: 'local_mall', url: '' },
+    aomi: { label: 'Aomi', short: 'Aomi', icon: 'local_mall', url: 'https://merchant.aomiapp.com/#/customer/evaluation' },
     uber_eats: { label: 'Uber Eats', short: 'Uber', icon: 'two_wheeler', url: 'https://merchants.ubereats.com' }
   };
   function platformLabel(key) {
@@ -917,6 +1076,75 @@
   function reviewMergedText(review) {
     return `${review.review || ''} ${review.translated_review || ''}`.toLowerCase();
   }
+  const keywordNoiseWords = new Set([
+    'the', 'and', 'for', 'with', 'that', 'this', 'was', 'were', 'have', 'has', 'from', 'very', 'just', 'but', 'you',
+    'your', 'our', 'their', 'they', 'been', 'delivery', 'drink', 'comment', 'review', 'order', 'service', 'food',
+    'local', 'guide', 'reviews', 'photos', 'photo', 'ago', 'new', 'star', 'stars', 'rating', 'rated', 'minutes',
+    'minute', 'hours', 'hour', 'days', 'day', 'item', 'items', 'qty', 'quantity', 'price', 'subtotal', 'total',
+    '评论', '評論', '则评论', '則評論', '配送', '门店', '客服', '这个', '那个', '我们', '你们', '他们', '因为', '但是', '没有',
+    '分钟', '分鐘', '分钟前', '分鐘前', '小时', '小時', '小时前', '小時前', '天前', '新', '照片', '评分', '星', '颗星', '顆星',
+    '订单', '订单号', '訂單', '商品', '规格', '規格', '数量', '數量', '单价', '單價', '价格', '價格', '小计', '小計',
+    '标准', '標準', '甜度', '茶底', '调整', '調整', '状态', '狀態', '推荐', '推薦', '冰沙', '少少少甜', '去茶底',
+    '条评价', '條評價', '則評價', '则评价', '在地嚮導', '本地向导', '張相片', '张照片', '週前', '周前',
+    '您好', '我们深表歉意', '我们深感抱歉', '感謝您', '谢谢您', 'app', 'heytea', 'tea', 'there', 'added',
+    'making', 'drinking', 'even', 'though', 'requested', 'bubble', 'straw', 'impossible', 'pretty', 'good',
+    'hey', 'sam', 'chen', 'nguyen', '此致', '好的', '然而', '而且', '个字', '好吧'
+  ]);
+  const businessKeywordRules = [
+    ['缺少吸管/餐具', ['straw', '吸管', '餐具', 'accessories', 'utensil']],
+    ['漏单少件', ['少给', '少了', '漏', 'missing', 'missed', '只给', '只給', '少杯', '少一杯', '少两杯', '少兩杯']],
+    ['杯型/规格不符', ['大杯', '小杯', '杯子大小', '大小不一致', 'wrong size', 'size', '规格不符', '規格不符']],
+    ['等待过久', ['等了', '等待', '太慢', '慢', 'delay', 'late', 'wait', '超时', '超時']],
+    ['包装问题', ['包装', '包裝', '漏洒', '漏灑', 'spill', 'spilled', 'seal', '袋子', '破损', '破損']],
+    ['口味正向', ['好喝', '味道很好', '味道很棒', '太棒了', '好茶', 'tasty', 'delicious', 'love', 'nice']],
+    ['口味/甜度问题', ['太甜', '不甜', '没味', '沒有味', 'no taste', 'sweet', 'bitter', 'underwhelming', '不好喝']],
+    ['服务态度问题', ['服务', '服務', '态度', '態度', 'rude', 'staff', 'employee', '客服']],
+    ['价格/性价比', ['贵', '貴', 'pricey', 'expensive', 'worth', '性价比', '性價比']],
+    ['食品安全风险', ['异物', '異物', '发霉', '發霉', '变质', '變質', 'hair', 'mold', 'spoiled', 'bug', '吐口水']],
+    ['个性化需求/备注', ['生日', '蜡烛', '蠟燭', 'candle', 'birthday', '备注', '備註', 'request']],
+    ['商品热度/复购', ['每次都点', '每次都點', '必点', '必點', 'go to', 'go-to', 'favorite', 'favourite', '常点', '常點']],
+  ];
+  const keywordModeLabels = {
+    all: { zh: '全部业务主题', en: 'All Business Themes' },
+    risk: { zh: '风险/投诉', en: 'Risk & Complaints' },
+    fulfillment: { zh: '履约/错漏', en: 'Fulfillment' },
+    product: { zh: '产品/口味', en: 'Product & Taste' },
+    service: { zh: '服务/价格', en: 'Service & Value' },
+    unique: { zh: '个性化需求', en: 'Unique Requests' },
+  };
+  function keywordModeLabel(mode) {
+    const item = keywordModeLabels[mode] || keywordModeLabels.all;
+    return lang() === 'zh' ? item.zh : item.en;
+  }
+  function keywordMatchesMode(label, mode = 'all') {
+    if (!mode || mode === 'all') return true;
+    const value = String(label || '');
+    const groups = {
+      risk: /食品安全|包装问题|等待过久|漏单少件|缺少吸管|杯型|规格|甜度问题/,
+      fulfillment: /缺少吸管|漏单少件|杯型|规格|等待过久|包装问题/,
+      product: /口味|甜度|商品热度|复购/,
+      service: /服务态度|价格|性价比/,
+      unique: /个性化需求|备注/,
+    };
+    return (groups[mode] || groups.all || /.*/).test(value);
+  }
+  function cleanReviewTextForAnalysis(review) {
+    const candidates = [review?.review, review?.translated_review];
+    for (const raw of candidates) {
+      let text = String(raw || '').trim();
+      if (!text || ['-', 'none', 'null', 'no data', '暂无', '暂无数据'].includes(text.toLowerCase())) continue;
+      text = text
+        .replace(/[\ue000-\uf8ff]/g, ' ')
+        .replace(/\b\d+\s*(?:reviews?|photos?|stars?|minutes?|hours?|days?)\b/gi, ' ')
+        .replace(/\d+\s*(?:则评论|則評論|张照片|張照片|分钟前|分鐘前|小时前|小時前|天前)/g, ' ')
+        .replace(/\b(?:local guide|new|ago)\b/gi, ' ')
+        .replace(/(?:订单号|訂單號|order\s*(?:id|no\.?|number|#))\s*[:：#]?\s*[A-Z]{0,6}\d{6,}/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (text.length >= 2 && !/^[\d\s:：/\-.,，。]+$/.test(text)) return text;
+    }
+    return '';
+  }
   function keywordFrequencyFromText(text, limit = 12) {
     const normalized = String(text || '').toLowerCase();
     const terms = [];
@@ -931,37 +1159,42 @@
     ]);
     const counts = new Map();
     terms.forEach(term => {
-      if (stopwords.has(term)) return;
+      if (stopwords.has(term) || keywordNoiseWords.has(term) || /^\d+[a-z]*$/i.test(term) || /(分钟|分鐘|小时|小時|天前|週前|周前|评论|評論|評價|评价|照片|相片|向导|嚮導|订单|訂單|规格|規格|数量|數量|价格|價格|歉意|抱歉)/.test(term)) return;
       counts.set(term, (counts.get(term) || 0) + 1);
     });
     return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, limit);
   }
-  function keywordFrequency(reviews, limit = 12) {
-    const text = reviews
-      .map(review => `${review.review || ''} ${review.translated_review || ''}`)
-      .join(' ')
-      .toLowerCase();
-    const terms = [];
-    const english = text.match(/[a-z][a-z'-]{2,}/g) || [];
-    const chinese = text.match(/[\u4e00-\u9fff]{2,}/g) || [];
-    terms.push(...english, ...chinese);
-    const stopwords = new Set(['the', 'and', 'for', 'with', 'that', 'this', 'was', 'were', 'have', 'has', 'from', 'very', 'just', 'but', 'you', 'your', 'our', 'their', 'they', 'been', 'delivery', 'drink', 'comment', 'review', '评论', '这个', '那个', '非常', '还有', '我们', '你们', '他们', '因为', '但是', '没有']);
-    const counts = new Map();
-    terms.forEach(term => {
-      if (stopwords.has(term)) return;
-      counts.set(term, (counts.get(term) || 0) + 1);
+  function keywordFrequency(reviews, limit = 12, mode = 'all') {
+    const businessCounts = new Map();
+    (Array.isArray(reviews) ? reviews : []).forEach(review => {
+      const text = cleanReviewTextForAnalysis(review).toLowerCase();
+      if (!text) return;
+      businessKeywordRules.forEach(([label, needles]) => {
+        if (!keywordMatchesMode(label, mode)) return;
+        if (needles.some(needle => text.includes(String(needle).toLowerCase()))) {
+          businessCounts.set(label, (businessCounts.get(label) || 0) + 1);
+        }
+      });
     });
-    return Array.from(counts.entries()).sort((a, b) => b[1] - a[1]).slice(0, limit);
+    const business = Array.from(businessCounts.entries()).sort((a, b) => b[1] - a[1]);
+    return business.slice(0, limit);
   }
-  function buildDailyVolumeLocal(reviews, days) {
+  function buildDailyVolumeLocal(reviews, days, rangeStart = '', rangeEnd = '') {
     const safeDays = days === 30 ? 30 : 7;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const end = rangeEnd ? new Date(`${rangeEnd}T00:00:00`) : new Date();
+    end.setHours(0, 0, 0, 0);
+    const start = rangeStart ? new Date(`${rangeStart}T00:00:00`) : new Date(end);
+    start.setHours(0, 0, 0, 0);
+    if (!rangeStart || Number.isNaN(start.getTime()) || !rangeEnd || Number.isNaN(end.getTime()) || start > end) {
+      start.setTime(end.getTime());
+      start.setDate(end.getDate() - safeDays + 1);
+    }
+    const span = Math.max(1, Math.min(30, Math.floor((end.getTime() - start.getTime()) / 86400000) + 1));
     const rows = [];
     const counters = new Map();
-    for (let offset = safeDays - 1; offset >= 0; offset -= 1) {
-      const day = new Date(today);
-      day.setDate(day.getDate() - offset);
+    for (let offset = 0; offset < span; offset += 1) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + offset);
       const token = day.toISOString().slice(0, 10);
       rows.push(token);
       counters.set(token, 0);
@@ -974,6 +1207,70 @@
       counters.set(token, Number(counters.get(token) || 0) + 1);
     });
     return rows.map(date => ({ date, count: Number(counters.get(date) || 0) }));
+  }
+  function reviewDateToken(review) {
+    const date = parseReviewDate(review?.review_time);
+    return date ? date.toISOString().slice(0, 10) : '';
+  }
+  function dashboardDateReviewsHtml(date, reviews) {
+    const rows = (reviews || []).filter(review => reviewDateToken(review) === date).slice(0, 12);
+    if (!rows.length) {
+      return `<div class="text-secondary text-body-sm">${escapeHtml(lang() === 'zh' ? '该日期暂无评论。' : 'No reviews on this date.')}</div>`;
+    }
+    return rows.map(review => {
+      const text = cleanReviewTextForAnalysis(review) || reviewShort(review.review || review.translated_review || '-', 160);
+      const rating = reviewRating(review) || '-';
+      return `<div class="border border-outline-variant p-2 mb-2">
+        <div class="flex justify-between gap-2 text-[11px] text-secondary">
+          <span>${escapeHtml(platformLabel(review.platform || '-'))} · ${escapeHtml(String(review.store || review.store_id || '-'))}</span>
+          <span>${escapeHtml(String(rating))}</span>
+        </div>
+        <div class="text-body-sm text-primary mt-1">${escapeHtml(reviewShort(text, 180))}</div>
+      </div>`;
+    }).join('');
+  }
+  function renderDashboardTrendSvg(trendRows, zoom = 1) {
+    const rows = Array.isArray(trendRows) ? trendRows : [];
+    if (!rows.length) return `<div class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无趋势数据' : 'No trend data')}</div>`;
+    const safeZoom = Math.max(0.8, Math.min(3, Number(zoom || 1)));
+    const width = Math.max(640, Math.round(rows.length * 92 * safeZoom));
+    const height = 280;
+    const left = 46;
+    const right = 24;
+    const top = 26;
+    const bottom = 46;
+    const innerW = width - left - right;
+    const innerH = height - top - bottom;
+    const maxCount = Math.max(1, ...rows.map(item => Number(item.count || 0)));
+    const points = rows.map((item, index) => {
+      const x = left + (rows.length === 1 ? innerW / 2 : (innerW * index) / (rows.length - 1));
+      const y = top + innerH - (Number(item.count || 0) / maxCount) * innerH;
+      return { ...item, x, y, count: Number(item.count || 0) };
+    });
+    const path = points.map(point => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+    const grid = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
+      const y = top + innerH - ratio * innerH;
+      const label = Math.round(maxCount * ratio);
+      return `<line x1="${left}" y1="${y}" x2="${width - right}" y2="${y}" stroke="#d9d1cc" stroke-dasharray="4 4"/><text x="8" y="${y + 4}" font-size="11" fill="#6b625c">${label}</text>`;
+    }).join('');
+    const labels = points.map((point, index) => {
+      const show = rows.length <= 10 || index % Math.ceil(rows.length / 8) === 0 || index === rows.length - 1;
+      if (!show) return '';
+      return `<text x="${point.x}" y="${height - 16}" font-size="11" fill="#6b625c" text-anchor="middle">${escapeHtml(String(point.date || '').slice(5))}</text>`;
+    }).join('');
+    const circles = points.map(point => `<g class="heytea-trend-node" data-trend-date="${escapeHtml(String(point.date || ''))}" style="cursor:pointer">
+      <circle cx="${point.x}" cy="${point.y}" r="7" fill="#111" stroke="#fff" stroke-width="2"></circle>
+      <text x="${point.x}" y="${point.y - 12}" font-size="11" fill="#111" text-anchor="middle">${point.count}</text>
+    </g>`).join('');
+    return `<svg viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="review trend line chart">
+      <rect x="0" y="0" width="${width}" height="${height}" fill="#fff"/>
+      ${grid}
+      <polyline points="${path}" fill="none" stroke="#111" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+      <line x1="${left}" y1="${top + innerH}" x2="${width - right}" y2="${top + innerH}" stroke="#111"/>
+      <line x1="${left}" y1="${top}" x2="${left}" y2="${top + innerH}" stroke="#111"/>
+      ${labels}
+      ${circles}
+    </svg>`;
   }
   function buildPlatformVolumeLocal(reviews) {
     const counts = new Map();
@@ -994,7 +1291,7 @@
     ];
     const counts = new Map(rules.map(rule => [rule.cluster, 0]));
     reviews.forEach(review => {
-      const merged = `${review.review || ''} ${review.translated_review || ''}`;
+      const merged = cleanReviewTextForAnalysis(review);
       rules.forEach(rule => {
         if (rule.re.test(merged)) counts.set(rule.cluster, Number(counts.get(rule.cluster) || 0) + 1);
       });
@@ -1004,8 +1301,8 @@
       .filter(item => item.count > 0)
       .sort((a, b) => b.count - a.count);
   }
-  function buildInsightFallbackFromReviews(reviews, days) {
-    const keywords = keywordFrequency(reviews, 20).map(([keyword, count]) => ({ keyword, count }));
+  function buildInsightFallbackFromReviews(reviews, days, keywordMode = 'all', rangeStart = '', rangeEnd = '') {
+    const keywords = keywordFrequency(reviews, 20, keywordMode).map(([keyword, count]) => ({ keyword, count }));
     const clusters = buildClustersLocal(reviews);
     const riskSamples = reviews
       .filter(review => {
@@ -1013,7 +1310,7 @@
         return (score > 0 && score <= 2) || /异物|发霉|变质|腹泻|投诉|slow|late|hair|mold|spoiled|rude/i.test(`${review.review || ''} ${review.translated_review || ''}`);
       })
       .slice(0, 20);
-    const daily = buildDailyVolumeLocal(reviews, days);
+    const daily = buildDailyVolumeLocal(reviews, days, rangeStart, rangeEnd);
     const riskCount = riskSamples.length;
     return {
       ok: true,
@@ -1048,11 +1345,45 @@
         trend_observation: '',
         lifecycle_stage: '',
         complaint_clusters: clusters.map(item => item.cluster).slice(0, 4),
-        food_safety_issues: keywords.filter(item => /异物|发霉|变质|hair|mold|spoiled/i.test(item.keyword)).map(item => item.keyword).slice(0, 6),
+        food_safety_issues: keywords.filter(item => /食品安全|异物|发霉|变质|hair|mold|spoiled/i.test(item.keyword)).map(item => item.keyword).slice(0, 6),
       },
       ai_used: false,
       ai_error: 'fallback_local_insight',
     };
+  }
+  function buildNotableDetailRows(reviews, limit = 8) {
+    const rows = [];
+    (Array.isArray(reviews) ? reviews : []).forEach(review => {
+      const text = cleanReviewTextForAnalysis(review);
+      if (!text) return;
+      const rating = Number(reviewRating(review) || 0);
+      const uniqueHint = /生日|蜡烛|蠟燭|candle|birthday|备注|備註|少给|少了|漏|missing|wrong|没有|沒有|not worth|impossible|requested/i.test(text);
+      if (!uniqueHint && !(rating > 0 && rating <= 2)) return;
+      rows.push({
+        time: review.review_time || '-',
+        platform: platformLabel(review.platform || '-'),
+        store: review.store || review.store_id || '-',
+        rating: rating || '-',
+        text,
+      });
+    });
+    return rows.slice(0, limit);
+  }
+  function buildProductDemandLocal(reviews, limit = 8) {
+    const liked = new Map();
+    const disliked = new Map();
+    (Array.isArray(reviews) ? reviews : []).forEach(review => {
+      const rating = Number(reviewRating(review) || 0);
+      const items = normalizeOrderItemsForDisplay(review.ordered_items);
+      items.forEach(item => {
+        const name = String(orderedItemName(item) || '').trim();
+        if (!name || name === '-') return;
+        if (rating >= 4) liked.set(name, Number(liked.get(name) || 0) + 1);
+        if (rating > 0 && rating <= 2) disliked.set(name, Number(disliked.get(name) || 0) + 1);
+      });
+    });
+    const toRows = map => Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, limit).map(([name, count]) => ({ name, count }));
+    return { liked: toRows(liked), disliked: toRows(disliked) };
   }
   function computeQualityMetricsLocal(reviews, history, days) {
     const safeReviews = Array.isArray(reviews) ? reviews : [];
@@ -1097,13 +1428,7 @@
           orderWithDetail += 1;
         }
       }
-      const dedupeKey = [
-        canonicalUiPlatform(review.platform || ''),
-        String(review.store || '').trim().toLowerCase(),
-        String(review.order_id || review.order_sn || '').trim(),
-        String(review.review_time || '').trim(),
-        String(review.review || review.translated_review || '').trim().slice(0, 120).toLowerCase(),
-      ].join('|');
+      const dedupeKey = reviewIdentityKey(review);
       if (seen.has(dedupeKey)) duplicateRows += 1;
       else seen.add(dedupeKey);
     });
@@ -1154,6 +1479,7 @@
   }
   async function initDashboardPage() {
     if (pageByPath() !== 'dashboard') return;
+    const renderSeq = nextDashboardRenderSeq();
     try {
       document.querySelectorAll('[data-i18n="action_view_all"]').forEach(button => {
         if (button.dataset.viewAllBound === '1') return;
@@ -1164,27 +1490,47 @@
         });
       });
       const days = selectedDays();
-      const safeInsightPromise = apiJson(`/api/unified/insight?days=${days}&limit=1600`).catch(() => ({
+      const dashboardRange = dashboardRangeState(days);
+      const rangeQuery = `days=${dashboardRange.span}&start_date=${encodeURIComponent(dashboardRange.start)}&end_date=${encodeURIComponent(dashboardRange.end)}`;
+      const insightTimeoutMs = 2800;
+      const reviews30TimeoutMs = 2800;
+      const safeInsightPromise = apiJson(`/api/unified/insight?${rangeQuery}&limit=1600`).catch(() => ({
         ok: false,
-        days,
+        days: dashboardRange.span,
         metrics: { review_count: 0, risk_count: 0, risk_index: 0, platform_count: 0 },
         series: { daily_volume: [], platform_volume: [], keywords: [], clusters: [], lifecycle: [], risk_samples: [] },
         ai: { summary: '', key_findings: [], root_causes: [], actions: [], risk_level: 'low' },
         ai_used: false,
         ai_error: 'insight endpoint unavailable',
       }));
-      const [status, runsPayload, registryPayload, reviewsPayload, reviews30Payload, insightPayload] = await Promise.all([
+      const insightFastPromise = Promise.race([
+        safeInsightPromise,
+        new Promise(resolve => setTimeout(() => resolve({
+          ok: false,
+          days: dashboardRange.span,
+          metrics: { review_count: 0, risk_count: 0, risk_index: 0, platform_count: 0 },
+          series: { daily_volume: [], platform_volume: [], keywords: [], clusters: [], lifecycle: [], risk_samples: [] },
+          ai: { summary: '', key_findings: [], root_causes: [], actions: [], risk_level: 'low' },
+          ai_used: false,
+          ai_error: `insight timeout ${insightTimeoutMs}ms`,
+        }), insightTimeoutMs)),
+      ]);
+      const safeReviews30Promise = Promise.race([
+        apiJson(`/api/unified/reviews?days=30&start_date=${encodeURIComponent(defaultDashboardRange(30).start)}&end_date=${encodeURIComponent(defaultDashboardRange(30).end)}&limit=1200`).catch(() => ({ reviews: [] })),
+        new Promise(resolve => setTimeout(() => resolve({ reviews: [] }), reviews30TimeoutMs)),
+      ]);
+      const [status, runsPayload, registryPayload, reviewsPayload, reviews30Payload] = await Promise.all([
         apiJson('/api/unified/status'),
         apiJson('/api/unified/runs?limit=100'),
         apiJson('/api/unified/stores?limit=1000'),
-        apiJson(`/api/unified/reviews?days=${days}&limit=600`),
-        apiJson('/api/unified/reviews?days=30&limit=1200'),
-        safeInsightPromise,
+        apiJson(`/api/unified/reviews?${rangeQuery}&limit=600`),
+        safeReviews30Promise,
       ]);
-      const reviews = reviewsPayload.reviews || [];
-      const reviews30 = reviews30Payload.reviews || [];
+      if (!isActiveDashboardRender(renderSeq)) return;
+      const reviews = dedupeReviewRecords(reviewsPayload.reviews || []);
+      const reviews30 = dedupeReviewRecords(reviews30Payload.reviews || []);
       const runs = runsPayload.runs || [];
-      const insight = insightPayload || {};
+      const insight = buildInsightFallbackFromReviews(reviews, dashboardRange.span, 'all', dashboardRange.start, dashboardRange.end);
       const states = derivePlatformStates(status, runs);
 
       const cards = Array.from(document.querySelectorAll('main .font-display-lg')).slice(0, 6);
@@ -1229,37 +1575,8 @@
       if (legendVolume) legendVolume.textContent = lang() === 'zh' ? '评论量' : 'Review Volume';
       const legendNegative = document.querySelector('[data-i18n="chart_legend_negative_rate"]');
       if (legendNegative) legendNegative.textContent = lang() === 'zh' ? '关键词热度' : 'Keyword Heat';
-      const chartBox = document.querySelector('[data-i18n="chart_placeholder_text"]')?.parentElement;
-      if (chartBox) {
-        const maxPlatform = Math.max(1, ...platformRows.map((item) => item[1]));
-        const maxKeyword = Math.max(1, ...keywords.map((item) => item[1]));
-        chartBox.classList.remove('items-center', 'justify-center');
-        chartBox.innerHTML = `
-          <div class="w-full h-full overflow-auto p-4 space-y-4">
-            <div class="grid grid-cols-2 gap-3">
-              <div class="border border-outline-variant p-3">
-                <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '本周 / 上周 评论量' : 'This Week / Last Week Volume'}</div>
-                <div class="font-data-mono text-data-mono text-primary">${thisWeek} / ${lastWeek}</div>
-                <div class="text-body-sm text-secondary">${lang() === 'zh' ? '周环比' : 'WoW'}: ${wowDelta === '-' ? '-' : `${wowDelta}%`}</div>
-              </div>
-              <div class="border border-outline-variant p-3">
-                <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '本月 / 上月 评论量' : 'This Month / Last Month Volume'}</div>
-                <div class="font-data-mono text-data-mono text-primary">${thisMonth} / ${lastMonth}</div>
-                <div class="text-body-sm text-secondary">${lang() === 'zh' ? '月环比' : 'MoM'}: ${momDelta === '-' ? '-' : `${momDelta}%`}</div>
-              </div>
-            </div>
-            <div>
-              <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '平台评论分布' : 'Platform Review Distribution'}</div>
-              ${platformRows.map(([key, count]) => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(platformLabel(key))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-primary" style="width:${Math.max(6, Math.round((count / maxPlatform) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${count}</div></div>`).join('') || `<div class="text-secondary">${lang() === 'zh' ? '暂无数据' : 'No data'}</div>`}
-            </div>
-            <div>
-              <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '关键词词频热表' : 'Keyword Frequency Heat Table'}</div>
-              ${keywords.map(([word, count]) => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(word)}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-[#ff9800]" style="width:${Math.max(6, Math.round((count / maxKeyword) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${count}</div></div>`).join('') || `<div class="text-secondary">${lang() === 'zh' ? '暂无关键词' : 'No keywords'}</div>`}
-            </div>
-          </div>`;
-      }
-
-      const chartBoxEnhanced = document.querySelector('[data-i18n="chart_placeholder_text"]')?.parentElement;
+      const chartPlaceholderNode = document.querySelector('[data-i18n="chart_placeholder_text"]');
+      const chartBoxEnhanced = chartPlaceholderNode?.parentElement;
       if (chartBoxEnhanced) {
         const trendRows = Array.isArray(insight.series?.daily_volume) ? insight.series.daily_volume : [];
         const platformRowsRich = Array.isArray(insight.series?.platform_volume)
@@ -1270,17 +1587,42 @@
           : keywords.map(([keyword, count]) => ({ keyword, count }));
         const clusterRows = Array.isArray(insight.series?.clusters) ? insight.series.clusters : [];
         const aiInsight = insight.ai || {};
+        const zoom = Math.max(0.8, Math.min(3, Number(window.__heyteaDashboardTrendZoom || 1)));
+        const defaultTrendDate = [...trendRows].reverse().find(item => Number(item.count || 0) > 0)?.date || trendRows[trendRows.length - 1]?.date || new Date().toISOString().slice(0, 10);
+        const selectedTrendDate = window.__heyteaDashboardTrendDate || defaultTrendDate;
+        const safeTrendDate = trendRows.some(item => item.date === selectedTrendDate) ? selectedTrendDate : defaultTrendDate;
+        window.__heyteaDashboardTrendDate = safeTrendDate;
         const maxTrend = Math.max(1, ...trendRows.map(item => Number(item.count || 0)));
         const maxPlatform = Math.max(1, ...platformRowsRich.map(item => Number(item.count || 0)));
         const maxKeyword = Math.max(1, ...keywordRows.map(item => Number(item.count || 0)));
         const maxCluster = Math.max(1, ...clusterRows.map(item => Number(item.count || 0)));
+        const activeChartView = String(window.__heyteaDashboardChartView || localStorage.getItem('heytea_dashboard_chart_view') || 'trend');
+        const phaseText = lang() === 'zh'
+          ? `本地趋势已加载（${dashboardRange.start} 至 ${dashboardRange.end}），AI洞察补全中...`
+          : `Local trend loaded (${dashboardRange.start} to ${dashboardRange.end}), AI insight syncing...`;
         chartBoxEnhanced.innerHTML = `
           <div class="w-full h-full overflow-auto p-4 space-y-4">
+            <div class="border border-outline-variant bg-surface-container-low px-3 py-2 text-body-sm text-secondary" data-dashboard-phase-banner>${escapeHtml(phaseText)}</div>
             <div class="flex flex-wrap gap-2">
               <button class="px-2 py-1 border border-outline-variant text-body-sm" data-chart-view="trend">${lang() === 'zh' ? '趋势折线' : 'Trend'}</button>
               <button class="px-2 py-1 border border-outline-variant text-body-sm" data-chart-view="platform">${lang() === 'zh' ? '平台分布' : 'Platform'}</button>
               <button class="px-2 py-1 border border-outline-variant text-body-sm" data-chart-view="keywords">${lang() === 'zh' ? '词频热表' : 'Keywords'}</button>
               <button class="px-2 py-1 border border-outline-variant text-body-sm" data-chart-view="clusters">${lang() === 'zh' ? '主题聚类' : 'Clusters'}</button>
+              <button class="px-2 py-1 border border-primary text-primary text-body-sm" data-chart-view="ai">${lang() === 'zh' ? 'AI解读' : 'AI Insight'}</button>
+              <button class="px-2 py-1 border border-primary text-primary text-body-sm" data-dashboard-open-ai>${lang() === 'zh' ? '打开AI分析页' : 'Open AI Analysis'}</button>
+              <button class="px-2 py-1 border border-outline-variant text-body-sm" data-trend-zoom="out">− ${lang() === 'zh' ? '缩小' : 'Zoom out'}</button>
+              <button class="px-2 py-1 border border-outline-variant text-body-sm" data-trend-zoom="in">+ ${lang() === 'zh' ? '放大' : 'Zoom in'}</button>
+              <label class="flex items-center gap-1 text-body-sm text-secondary ml-auto">${lang() === 'zh' ? '起始' : 'Start'}
+                <input type="date" class="border border-outline-variant px-2 py-1 text-body-sm" data-trend-range-start value="${escapeHtml(dashboardRange.start)}">
+              </label>
+              <label class="flex items-center gap-1 text-body-sm text-secondary">${lang() === 'zh' ? '结束' : 'End'}
+                <input type="date" class="border border-outline-variant px-2 py-1 text-body-sm" data-trend-range-end value="${escapeHtml(dashboardRange.end)}">
+              </label>
+              <button class="px-2 py-1 border border-outline-variant text-body-sm" data-trend-range-apply>${lang() === 'zh' ? '应用' : 'Apply'}</button>
+              <button class="px-2 py-1 border border-outline-variant text-body-sm" data-trend-range-reset>${lang() === 'zh' ? '重置' : 'Reset'}</button>
+              <label class="flex items-center gap-1 text-body-sm text-secondary">${lang() === 'zh' ? '节点日期' : 'Date'}
+                <input type="date" class="border border-outline-variant px-2 py-1 text-body-sm" data-trend-date-input value="${escapeHtml(safeTrendDate)}">
+              </label>
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div class="border border-outline-variant p-3">
@@ -1294,39 +1636,129 @@
                 <div class="text-body-sm text-secondary">${lang() === 'zh' ? '月环比' : 'MoM'}: ${momDelta === '-' ? '-' : `${momDelta}%`}</div>
               </div>
             </div>
-            <div data-chart-panel="trend">
-              <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '评论趋势（近7/30天）' : 'Review Trend'}</div>
-              ${trendRows.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-28 text-body-sm text-primary">${escapeHtml(String(item.date || '-').slice(5))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-primary" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxTrend) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${lang() === 'zh' ? '暂无趋势数据' : 'No trend data'}</div>`}
+            <div data-chart-panel="trend" style="${activeChartView === 'trend' ? '' : 'display:none'}">
+              <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '评论趋势折线图（点击节点查看当天评论）' : 'Review Trend Line (click nodes for reviews)'}</div>
+              <div class="overflow-auto border border-outline-variant bg-white">${renderDashboardTrendSvg(trendRows, zoom)}</div>
+              <div class="mt-3 border border-outline-variant p-2">
+                <div class="font-label-caps text-label-caps text-secondary mb-2" data-selected-trend-label>${escapeHtml((lang() === 'zh' ? '选中日期：' : 'Selected date: ') + safeTrendDate)}</div>
+                <div data-dashboard-date-reviews>${dashboardDateReviewsHtml(safeTrendDate, reviews)}</div>
+              </div>
             </div>
-            <div data-chart-panel="platform" style="display:none">
+            <div data-chart-panel="platform" style="${activeChartView === 'platform' ? '' : 'display:none'}">
               <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '平台评论分布' : 'Platform Review Distribution'}</div>
               ${platformRowsRich.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(platformLabel(item.platform || ''))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-primary" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxPlatform) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${lang() === 'zh' ? '暂无平台数据' : 'No platform data'}</div>`}
             </div>
-            <div data-chart-panel="keywords" style="display:none">
+            <div data-chart-panel="keywords" style="${activeChartView === 'keywords' ? '' : 'display:none'}">
               <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '关键词词频热表' : 'Keyword Frequency Heat Table'}</div>
               ${keywordRows.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(String(item.keyword || ''))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-[#ff9800]" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxKeyword) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${lang() === 'zh' ? '暂无关键词' : 'No keywords'}</div>`}
             </div>
-            <div data-chart-panel="clusters" style="display:none">
+            <div data-chart-panel="clusters" style="${activeChartView === 'clusters' ? '' : 'display:none'}">
               <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? '主题聚类分布' : 'Topic Clusters'}</div>
               ${clusterRows.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(String(item.cluster || ''))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-[#8e44ad]" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxCluster) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${lang() === 'zh' ? '暂无聚类结果' : 'No clusters'}</div>`}
             </div>
-            <div class="border border-outline-variant p-3">
+            <div data-chart-panel="ai" style="${activeChartView === 'ai' ? '' : 'display:none'}" class="border border-outline-variant p-3">
               <div class="font-label-caps text-label-caps text-secondary mb-2">${lang() === 'zh' ? 'AI实时解读与整改建议' : 'AI Interpretation & Remediation'}</div>
-              <div class="text-body-sm text-primary mb-2">${escapeHtml(aiInsight.summary || (lang() === 'zh' ? '暂无AI解读' : 'No AI interpretation yet'))}</div>
-              <div class="text-body-sm text-secondary">${escapeHtml((aiInsight.key_findings || []).join('； '))}</div>
-              <div class="text-body-sm text-secondary mt-1">${escapeHtml((aiInsight.actions || []).join('； '))}</div>
+              <div class="text-body-sm text-primary mb-2" data-dashboard-ai-summary>${escapeHtml(aiInsight.summary || (lang() === 'zh' ? '暂无AI解读' : 'No AI interpretation yet'))}</div>
+              <div class="text-body-sm text-secondary" data-dashboard-ai-findings>${escapeHtml((aiInsight.key_findings || []).join('； '))}</div>
+              <div class="text-body-sm text-secondary mt-1" data-dashboard-ai-actions>${escapeHtml((aiInsight.actions || []).join('； '))}</div>
             </div>
           </div>`;
         chartBoxEnhanced.querySelectorAll('[data-chart-view]').forEach(button => button.addEventListener('click', () => {
           const view = button.dataset.chartView;
+          window.__heyteaDashboardChartView = view;
+          localStorage.setItem('heytea_dashboard_chart_view', view);
           chartBoxEnhanced.querySelectorAll('[data-chart-panel]').forEach(panel => {
             panel.style.display = panel.dataset.chartPanel === view ? '' : 'none';
           });
         }));
+        const showTrendDate = date => {
+          const token = String(date || '').slice(0, 10);
+          if (!token) return;
+          window.__heyteaDashboardTrendDate = token;
+          const input = chartBoxEnhanced.querySelector('[data-trend-date-input]');
+          if (input) input.value = token;
+          const label = chartBoxEnhanced.querySelector('[data-selected-trend-label]');
+          if (label) label.textContent = (lang() === 'zh' ? '选中日期：' : 'Selected date: ') + token;
+          const target = chartBoxEnhanced.querySelector('[data-dashboard-date-reviews]');
+          if (target) target.innerHTML = dashboardDateReviewsHtml(token, reviews);
+        };
+        chartBoxEnhanced.querySelectorAll('[data-trend-date]').forEach(node => node.addEventListener('click', () => {
+          showTrendDate(node.dataset.trendDate);
+        }));
+        chartBoxEnhanced.querySelector('[data-trend-date-input]')?.addEventListener('change', event => {
+          showTrendDate(event.target.value);
+          chartBoxEnhanced.querySelector('[data-chart-view="trend"]')?.click();
+        });
+        chartBoxEnhanced.querySelector('[data-trend-range-apply]')?.addEventListener('click', async () => {
+          const start = String(chartBoxEnhanced.querySelector('[data-trend-range-start]')?.value || '').trim();
+          const end = String(chartBoxEnhanced.querySelector('[data-trend-range-end]')?.value || '').trim();
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end)) {
+            notify(lang() === 'zh' ? '请选择合法的起止日期' : 'Please select a valid date range');
+            return;
+          }
+          persistDashboardRange(start, end, 'custom');
+          updateDynamicDateLabels();
+          await initDashboardPage();
+        });
+        chartBoxEnhanced.querySelector('[data-trend-range-reset]')?.addEventListener('click', async () => {
+          const fallback = defaultDashboardRange(selectedDays());
+          persistDashboardRange(fallback.start, fallback.end, 'rolling');
+          updateDynamicDateLabels();
+          await initDashboardPage();
+        });
+        chartBoxEnhanced.querySelectorAll('[data-trend-zoom]').forEach(button => button.addEventListener('click', async () => {
+          const direction = button.dataset.trendZoom;
+          const current = Math.max(0.8, Math.min(3, Number(window.__heyteaDashboardTrendZoom || 1)));
+          window.__heyteaDashboardTrendZoom = direction === 'in' ? Math.min(3, current + 0.25) : Math.max(0.8, current - 0.25);
+          await initDashboardPage();
+        }));
+        chartBoxEnhanced.querySelector('[data-dashboard-open-ai]')?.addEventListener('click', () => {
+          location.href = '/stitch-static/quality_report_global/code.html?focus=ai';
+        });
+        safeInsightPromise.then(payload => {
+          if (!isActiveDashboardRender(renderSeq)) return;
+          const phaseNode = chartBoxEnhanced.querySelector('[data-dashboard-phase-banner]');
+          if (!payload || !payload.ok) {
+            if (phaseNode) {
+              phaseNode.textContent = lang() === 'zh'
+                ? `本地趋势已加载（${dashboardRange.start} 至 ${dashboardRange.end}），模型洞察异常，已保留本地规则洞察。`
+                : `Local trend loaded (${dashboardRange.start} to ${dashboardRange.end}); model insight failed, local rule insight remains available.`;
+              return;
+              phaseNode.textContent = lang() === 'zh'
+                ? `本地趋势已加载（${dashboardRange.start} 至 ${dashboardRange.end}），AI洞察暂不可用。`
+                : `Local trend loaded (${dashboardRange.start} to ${dashboardRange.end}), AI insight temporarily unavailable.`;
+            }
+            return;
+          }
+          const aiSummaryNode = chartBoxEnhanced.querySelector('[data-dashboard-ai-summary]');
+          const aiFindingNode = chartBoxEnhanced.querySelector('[data-dashboard-ai-findings]');
+          const aiActionNode = chartBoxEnhanced.querySelector('[data-dashboard-ai-actions]');
+          const ai = payload.ai || {};
+          if (aiSummaryNode) aiSummaryNode.textContent = String(ai.summary || aiSummaryNode.textContent || '');
+          if (aiFindingNode) aiFindingNode.textContent = String((ai.key_findings || []).join('； '));
+          if (aiActionNode) aiActionNode.textContent = String((ai.actions || []).join('； '));
+          if (phaseNode) {
+            const aiError = String(payload.ai_error || '').trim();
+            const aiUsed = Boolean(payload.ai_used);
+            phaseNode.textContent = lang() === 'zh'
+              ? (aiUsed
+                  ? `本地趋势已加载（${dashboardRange.start} 至 ${dashboardRange.end}），AI洞察已补全。`
+                  : `本地趋势已加载（${dashboardRange.start} 至 ${dashboardRange.end}），模型洞察未启用或额度不足，已使用本地规则洞察。${aiError ? ` 原因：${aiError.slice(0, 120)}` : ''}`)
+              : (aiUsed
+                  ? `Local trend loaded (${dashboardRange.start} to ${dashboardRange.end}); AI insight synchronized.`
+                  : `Local trend loaded (${dashboardRange.start} to ${dashboardRange.end}); model insight not active or quota-limited, using local rule insight.${aiError ? ` Reason: ${aiError.slice(0, 120)}` : ''}`);
+            return;
+            phaseNode.textContent = lang() === 'zh'
+              ? `本地趋势已加载（${dashboardRange.start} 至 ${dashboardRange.end}），AI洞察已补全。`
+              : `Local trend loaded (${dashboardRange.start} to ${dashboardRange.end}), AI insight synchronized.`;
+          }
+        }).catch(() => {});
       }
 
       const statusTitle = document.querySelector('[data-i18n="platform_status_title"]');
-      const statusList = statusTitle?.parentElement?.querySelector('div.flex.flex-col.gap-3');
+      const statusSection = statusTitle?.closest('section') || statusTitle?.parentElement;
+      const statusList = statusSection?.querySelector('div.flex.flex-col.gap-3')
+        || statusSection?.querySelector('div.flex.flex-col');
       if (statusList) {
         const keys = Object.keys(status.platforms || {}).map(canonicalUiPlatform);
         statusList.innerHTML = keys.map(key => {
@@ -1357,14 +1789,47 @@
       }
 
       const matrixTitle = document.querySelector('[data-i18n="matrix_title"]');
-      const matrixBody = matrixTitle?.parentElement?.parentElement?.querySelector('tbody');
+      const matrixSection = matrixTitle?.closest('section')
+        || matrixTitle?.closest('div.bg-surface-container-lowest')
+        || matrixTitle?.parentElement?.parentElement
+        || matrixTitle?.parentElement;
+      const matrixTable = matrixSection?.querySelector('table');
+      const matrixBody = matrixTable?.querySelector('tbody');
       if (matrixBody) {
         const stores = registryPayload.stores || [];
         const requiredRegions = ['中国澳门', '加拿大', '马来西亚', '美国', '英国', '韩国', '澳大利亚', '中国香港'];
         const observedRegions = Array.from(new Set(stores.map(store => normalizeRegionForMatrix(String(store.country || ''))).filter(Boolean)));
         const extraRegions = observedRegions.filter(region => !requiredRegions.includes(region));
         const regions = [...requiredRegions, ...extraRegions];
-        const platformColumns = ['google_maps', 'grabfood', 'hungry_panda'];
+        const preferredPlatformColumns = [
+          'google_maps',
+          'grabfood',
+          'hungry_panda',
+          'fantuan',
+          'keeta',
+          'openrice',
+          'mfood',
+          'dianping',
+          'uber_eats',
+          'aomi',
+        ];
+        const observedPlatformSet = new Set(
+          Object.keys(status.platforms || {}).map(canonicalUiPlatform).filter(Boolean),
+        );
+        stores.forEach(store => {
+          storePlatformKeys(store).forEach(key => observedPlatformSet.add(key));
+        });
+        const platformColumns = [
+          ...preferredPlatformColumns.filter(key => observedPlatformSet.has(key)),
+          ...Array.from(observedPlatformSet).filter(key => !preferredPlatformColumns.includes(key)).sort(),
+        ];
+        const matrixHeadRow = matrixTable?.querySelector('thead tr');
+        if (matrixHeadRow) {
+          matrixHeadRow.innerHTML = [
+            `<th>${escapeHtml(lang() === 'zh' ? '区域' : 'Region')}</th>`,
+            ...platformColumns.map(platformKey => `<th>${escapeHtml(platformLabel(platformKey))}</th>`),
+          ].join('');
+        }
         const colorByState = {
           success: 'bg-primary border border-primary',
           failed: 'bg-error border border-error',
@@ -1521,6 +1986,7 @@
         <select class="heytea-header-select" id="heytea-timezone-select" aria-label="${t('timezone')}">${tzOptions}</select>
         <select class="heytea-header-select" id="heytea-language-select" aria-label="Language"><option value="en" ${lang()==='en'?'selected':''}>${englishLabel}</option><option value="zh" ${lang()==='zh'?'selected':''}>${chineseLabel}</option></select>
         <button class="heytea-header-button" type="button" data-action="weekly-range"><span class="material-symbols-outlined" style="font-size:18px">calendar_today</span>${t('weekly')}: <strong data-heytea-days="${selectedDays()}">${selectedRangeLabel()}</strong></button>
+        <button class="heytea-header-button" type="button" data-action="ai-analysis">${lang() === 'zh' ? 'AI分析' : 'AI Analysis'}</button>
         <button class="heytea-header-button primary" type="button" data-action="export-report">${t('export')}</button>
         <span class="heytea-header-divider"></span>
         <button class="heytea-header-icon" type="button" data-action="notifications" title="${t('notifications')}"><span class="material-symbols-outlined">notifications</span><span class="heytea-notify-badge" id="heytea-notify-badge" hidden></span></button>
@@ -1716,6 +2182,11 @@
         return;
       }
       if (intent.includes('export')) { event.preventDefault(); await exportVisible(); return; }
+      if (intent.includes('ai analysis') || intent.includes('ai分析') || button.dataset.action === 'ai-analysis') {
+        event.preventDefault();
+        location.href = '/stitch-static/quality_report_global/code.html?focus=ai';
+        return;
+      }
       if (intent.includes('new task') || intent.includes('create task') || intent.includes('launch') || intent.includes('run collector') || intent.includes('\u521b\u5efa\u65b0\u4efb\u52a1')) { event.preventDefault(); openTaskDrawer(); return; }
       if (intent.includes('weekly') || intent.includes('last 7') || intent.includes('last 30') || intent.includes('date range') || intent.includes('custom') || intent.includes('range') || intent.includes('\u65e5\u671f\u8303\u56f4')) { event.preventDefault(); showRangeModal(); return; }
       if (intent.includes('filter') || intent.includes('refresh')) { event.preventDefault(); notify(`${t('filterApplied')}: ${selectedRangeLabel()}`); return; }
@@ -2193,12 +2664,46 @@
       }
     });
   }
+  function applyQualityFocus(panel) {
+    const focus = new URLSearchParams(location.search).get('focus');
+    if (focus !== 'ai' || !panel) return;
+    const alreadyFocused = sessionStorage.getItem('heytea_quality_focus_applied') === '1';
+    const target = panel.querySelector('[data-quality-focus-target="ai"]') || panel;
+    if (!alreadyFocused) {
+      target.classList.add('ring-2', 'ring-primary');
+      setTimeout(() => target.classList.remove('ring-2', 'ring-primary'), 1800);
+      sessionStorage.setItem('heytea_quality_focus_applied', '1');
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
   async function initQualityReportPage() {
     if (pageByPath() !== 'quality_report') return;
+    const renderSeq = nextQualityRenderSeq();
     try {
       const days = selectedDays();
+      const requestedQualityPlatform = localStorage.getItem('heytea_quality_platform') || '';
+      const requestedQualityPlatformParam = requestedQualityPlatform
+        ? `&platform=${encodeURIComponent(requestedQualityPlatform)}`
+        : '';
+      const qualityTimeoutMs = 3200;
+      const main = document.querySelector('main');
+      if (!main) return;
+      let panel = document.getElementById('heytea-quality-extended');
+      if (!panel) {
+        panel = document.createElement('section');
+        panel.id = 'heytea-quality-extended';
+        panel.className = 'space-y-4';
+        panel.innerHTML = `<div class="border border-outline-variant p-3 text-secondary text-body-sm">${escapeHtml(lang() === 'zh' ? '正在加载质量分析...' : 'Loading quality analysis...')}</div>`;
+        main.appendChild(panel);
+      }
+      panel.setAttribute('data-quality-focus-target', 'ai');
+      applyQualityFocus(panel);
       const endpointErrors = [];
-      const composite = await apiJsonSoft(`/api/unified/quality-report?days=${days}&limit=1600`, null);
+      const composite = await Promise.race([
+        apiJsonSoft(`/api/unified/quality-report?days=${days}&limit=1600${requestedQualityPlatformParam}`, null),
+        new Promise(resolve => setTimeout(() => resolve({ ok: false, error: `quality-report timeout ${qualityTimeoutMs}ms`, data: null }), qualityTimeoutMs)),
+      ]);
+      if (!isActiveQualityRender(renderSeq)) return;
       let status = {};
       let reviews = [];
       let insight = null;
@@ -2208,7 +2713,7 @@
       let lastUpdated = '';
       if (composite.ok && composite.data?.ok) {
         status = composite.data.status || {};
-        reviews = Array.isArray(composite.data.reviews?.reviews) ? composite.data.reviews.reviews : [];
+        reviews = dedupeReviewRecords(Array.isArray(composite.data.reviews?.reviews) ? composite.data.reviews.reviews : []);
         insight = composite.data.insight || null;
         knowledgeEntries = Array.isArray(composite.data.knowledge?.entries) ? composite.data.knowledge.entries : [];
         settingsPayload = composite.data.settings || {};
@@ -2218,27 +2723,37 @@
         if (!composite.ok) endpointErrors.push(`quality-report: ${composite.error}`);
         const [statusRes, reviewsRes, insightRes, knowledgeRes, settingsRes] = await Promise.all([
           apiJsonSoft('/api/unified/status', { now: new Date().toISOString(), coordinator: { history: [] }, platforms: {} }),
-          apiJsonSoft(`/api/unified/reviews?days=${days}&limit=500`, { reviews: [] }),
-          apiJsonSoft(`/api/unified/insight?days=${days}&limit=1600`, null),
+          apiJsonSoft(`/api/unified/reviews?days=${days}&limit=500${requestedQualityPlatformParam}`, { reviews: [] }),
+          apiJsonSoft(`/api/unified/insight?days=${days}&limit=1600${requestedQualityPlatformParam}`, null),
           apiJsonSoft('/api/unified/knowledge?limit=30', { entries: [] }),
           apiJsonSoft('/api/unified/settings', { settings: {} }),
         ]);
+        if (!isActiveQualityRender(renderSeq)) return;
         if (!statusRes.ok) endpointErrors.push(`status: ${statusRes.error}`);
         if (!reviewsRes.ok) endpointErrors.push(`reviews: ${reviewsRes.error}`);
         if (!insightRes.ok) endpointErrors.push(`insight: ${insightRes.error}`);
         if (!knowledgeRes.ok) endpointErrors.push(`knowledge: ${knowledgeRes.error}`);
         if (!settingsRes.ok) endpointErrors.push(`settings: ${settingsRes.error}`);
         status = statusRes.data || {};
-        reviews = Array.isArray(reviewsRes.data?.reviews) ? reviewsRes.data.reviews : [];
+        reviews = dedupeReviewRecords(Array.isArray(reviewsRes.data?.reviews) ? reviewsRes.data.reviews : []);
         insight = insightRes.data || null;
         knowledgeEntries = Array.isArray(knowledgeRes.data?.entries) ? knowledgeRes.data.entries : [];
         settingsPayload = settingsRes.data || {};
       }
-      if (!insight || !insight.series) {
-        insight = buildInsightFallbackFromReviews(reviews, days);
-      }
-      const fallbackMetrics = computeQualityMetricsLocal(reviews, status.coordinator?.history || [], days);
-      const metrics = qualityMetrics || fallbackMetrics;
+      const platformKeysFromStatus = Object.keys(status.platforms || {}).map(canonicalUiPlatform).filter(Boolean);
+      const platformKeysFromReviews = reviews.map(item => canonicalUiPlatform(item.platform || '')).filter(Boolean);
+      const availableQualityPlatforms = Array.from(new Set([...platformKeysFromStatus, ...platformKeysFromReviews])).sort();
+      let selectedQualityPlatform = requestedQualityPlatform;
+      if (selectedQualityPlatform && !availableQualityPlatforms.includes(selectedQualityPlatform)) selectedQualityPlatform = '';
+      const selectedKeywordMode = localStorage.getItem('heytea_quality_keyword_mode') || 'all';
+      const selectedQualityChart = localStorage.getItem('heytea_quality_chart_view') || 'trend';
+      const filteredReviews = selectedQualityPlatform
+        ? reviews.filter(item => canonicalUiPlatform(item.platform || '') === selectedQualityPlatform)
+        : reviews;
+      if (!isActiveQualityRender(renderSeq)) return;
+      insight = buildInsightFallbackFromReviews(filteredReviews, days, selectedKeywordMode);
+      const fallbackMetrics = computeQualityMetricsLocal(filteredReviews, status.coordinator?.history || [], days);
+      const metrics = fallbackMetrics;
       const cards = Array.from(document.querySelectorAll('main .font-display-lg'));
       if (cards[0]) cards[0].textContent = `${Number(metrics.field_completion_rate || 0).toFixed(1)}%`;
       if (cards[1]) cards[1].textContent = `${Number(metrics.detail_coverage || 0).toFixed(1)}%`;
@@ -2252,14 +2767,16 @@
       if (topUpdatedNode) topUpdatedNode.textContent = updatedStamp;
       patchLegacyTimestampNodes([`${updatedStamp} ${tz()}`]);
 
-      const ai = insight.ai || {};
+      let ai = insight.ai || {};
       const daily = Array.isArray(insight.series?.daily_volume) ? insight.series.daily_volume : [];
       const lifecycle = Array.isArray(insight.series?.lifecycle) ? insight.series.lifecycle : [];
       const clusters = Array.isArray(insight.series?.clusters) ? insight.series.clusters : [];
       const keywords = Array.isArray(insight.series?.keywords) ? insight.series.keywords : [];
-      const platformVolume = Array.isArray(insight.series?.platform_volume) ? insight.series.platform_volume : buildPlatformVolumeLocal(reviews);
+      const platformVolume = Array.isArray(insight.series?.platform_volume) ? insight.series.platform_volume : buildPlatformVolumeLocal(filteredReviews);
       const riskSamples = Array.isArray(insight.series?.risk_samples) ? insight.series.risk_samples.slice(0, 6) : [];
-      const reviewRows = [...reviews]
+      const notableDetails = buildNotableDetailRows(filteredReviews, 8);
+      const productDemand = buildProductDemandLocal(filteredReviews, 8);
+      const reviewRows = [...filteredReviews]
         .sort((a, b) => String(b.review_time || '').localeCompare(String(a.review_time || '')))
         .slice(0, 10);
       const appSettings = settingsPayload.settings || settingsPayload || {};
@@ -2267,14 +2784,22 @@
       const activeProvider = String(apiSettings.active_provider || '').trim();
       const providerPool = apiSettings.providers || {};
       const providerCfg = providerPool[activeProvider] || {};
+      const qualitySettings = appSettings.quality || {};
+      const draftStorageKey = `heytea_quality_draft_${days}_${selectedQualityPlatform || 'all'}_${selectedKeywordMode}`;
+      const savedDraft = localStorage.getItem(draftStorageKey) || '';
       const maxTrend = Math.max(1, ...daily.map(item => Number(item.count || 0)));
       const maxPlatform = Math.max(1, ...platformVolume.map(item => Number(item.count || 0)));
       const maxKeyword = Math.max(1, ...keywords.map(item => Number(item.count || 0)));
       const maxCluster = Math.max(1, ...clusters.map(item => Number(item.count || 0)));
+      const platformOptions = `<option value="">${escapeHtml(lang() === 'zh' ? '全部平台' : 'All Platforms')}</option>${availableQualityPlatforms.map(platform => `<option value="${escapeHtml(platform)}" ${platform === selectedQualityPlatform ? 'selected' : ''}>${escapeHtml(platformLabel(platform))}</option>`).join('')}`;
+      const keywordModeOptions = Object.keys(keywordModeLabels).map(mode => `<option value="${escapeHtml(mode)}" ${mode === selectedKeywordMode ? 'selected' : ''}>${escapeHtml(keywordModeLabel(mode))}</option>`).join('');
+      const filteredScopeLabel = `${selectedQualityPlatform ? platformLabel(selectedQualityPlatform) : (lang() === 'zh' ? '全部平台' : 'All Platforms')} · ${keywordModeLabel(selectedKeywordMode)}`;
       const trendRows = daily.map(row => `<tr class="border-b border-outline-variant"><td class="px-2 py-1 font-data-mono text-data-mono">${escapeHtml(String(row.date || '-'))}</td><td class="px-2 py-1 text-right font-data-mono text-data-mono">${Number(row.count || 0)}</td></tr>`).join('') || `<tr><td colspan="2" class="px-2 py-2 text-secondary">${escapeHtml(lang() === 'zh' ? '暂无趋势数据' : 'No trend data')}</td></tr>`;
       const lifecycleRows = lifecycle.map(row => `<tr class="border-b border-outline-variant"><td class="px-2 py-1 text-secondary">${escapeHtml(String(row.stage || '-'))}</td><td class="px-2 py-1 text-right font-data-mono text-data-mono">${Number(row.count || 0)}</td></tr>`).join('') || `<tr><td colspan="2" class="px-2 py-2 text-secondary">${escapeHtml(lang() === 'zh' ? '暂无生命周期数据' : 'No lifecycle data')}</td></tr>`;
       const clusterRows = clusters.map(row => `<li class="flex justify-between gap-2"><span class="text-secondary">${escapeHtml(String(row.cluster || '-'))}</span><span class="font-data-mono text-data-mono">${Number(row.count || 0)}</span></li>`).join('') || `<li class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无聚类结果' : 'No clusters')}</li>`;
       const sampleRows = riskSamples.map(row => `<li class="border border-outline-variant p-2"><div class="text-secondary text-[11px]">${escapeHtml(String(row.review_time || '-'))} · ${escapeHtml(String(row.platform || '-'))} · ${escapeHtml(String(row.store || '-'))}</div><div class="text-primary text-body-sm mt-1">${escapeHtml(reviewShort(row.translated_review || row.review || '-', 180))}</div></li>`).join('') || `<li class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无高风险样本' : 'No risk samples')}</li>`;
+      const notableRows = notableDetails.map(row => `<li class="border border-outline-variant p-2"><div class="text-secondary text-[11px]">${escapeHtml(String(row.time || '-'))} · ${escapeHtml(String(row.platform || '-'))} · ${escapeHtml(String(row.store || '-'))} · ${escapeHtml(String(row.rating || '-'))}</div><div class="text-primary text-body-sm mt-1">${escapeHtml(reviewShort(row.text || '-', 180))}</div></li>`).join('') || `<li class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无个性化明细' : 'No notable details')}</li>`;
+      const productRows = (title, rows) => `<div><div class="font-label-caps text-label-caps text-secondary mb-1">${escapeHtml(title)}</div>${rows.map(item => `<div class="flex items-center justify-between gap-2 text-body-sm"><span class="text-primary truncate">${escapeHtml(item.name)}</span><span class="font-data-mono text-data-mono">${Number(item.count || 0)}</span></div>`).join('') || `<div class="text-secondary text-body-sm">-</div>`}</div>`;
       const knowledgeRows = knowledgeEntries.map(entry => `<li class="border border-outline-variant p-2"><div class="flex items-center justify-between gap-2"><span class="font-title-sm text-primary truncate">${escapeHtml(entry.name || entry.id || '-')}</span><button type="button" class="text-error text-[11px]" data-kb-remove="${escapeHtml(entry.id || '')}">${escapeHtml(lang() === 'zh' ? '删除' : 'Remove')}</button></div><p class="text-secondary text-[12px] mt-1 line-clamp-2">${escapeHtml(entry.snippet || '-')}</p></li>`).join('') || `<li class="text-secondary">${escapeHtml(lang() === 'zh' ? '知识库为空' : 'Knowledge base is empty')}</li>`;
       const latestRows = reviewRows.map(review => {
         const rating = Number(reviewRating(review) || 0);
@@ -2291,24 +2816,24 @@
         ? `<div class="border border-[#ff9800] bg-[#fff7e6] text-[#8a4b00] px-3 py-2 text-[12px]">${escapeHtml((lang() === 'zh' ? '接口降级模式：' : 'Degraded API mode: ') + endpointErrors.join(' | '))}</div>`
         : '';
 
-      const main = document.querySelector('main');
-      if (!main) return;
-      let panel = document.getElementById('heytea-quality-extended');
-      if (!panel) {
-        panel = document.createElement('section');
-        panel.id = 'heytea-quality-extended';
-        panel.className = 'space-y-4';
-        main.appendChild(panel);
-      }
       panel.innerHTML = `
         ${endpointWarn}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <section class="bg-surface-container-lowest border border-outline p-4 lg:col-span-2 space-y-3">
-            <div class="flex items-center justify-between">
-              <h3 class="font-title-sm text-title-sm text-primary">${escapeHtml(lang() === 'zh' ? '实时评论分析与质量报告' : 'Realtime Review Analysis & Quality Report')}</h3>
-              <span class="font-data-mono text-data-mono text-secondary">${escapeHtml(`${days}d`)}</span>
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="font-title-sm text-title-sm text-primary">${escapeHtml(lang() === 'zh' ? '实时评论分析与质量报告' : 'Realtime Review Analysis & Quality Report')}</h3>
+                <div class="text-[12px] text-secondary">${escapeHtml(filteredScopeLabel)} · ${escapeHtml(lang() === 'zh' ? `当前样本 ${filteredReviews.length}/${reviews.length} 条` : `${filteredReviews.length}/${reviews.length} records`)}</div>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <select data-quality-platform-filter class="border border-outline-variant bg-surface-container-lowest p-2 text-body-sm">${platformOptions}</select>
+                <select data-quality-keyword-mode class="border border-outline-variant bg-surface-container-lowest p-2 text-body-sm">${keywordModeOptions}</select>
+                <span class="font-data-mono text-data-mono text-secondary">${escapeHtml(`${days}d`)}</span>
+              </div>
             </div>
-            <p class="text-primary text-body-sm">${escapeHtml(ai.summary || (lang() === 'zh' ? '暂无AI报告' : 'No AI report yet'))}</p>
+            <p class="text-primary text-body-sm" data-quality-ai-summary>${escapeHtml(ai.summary || (lang() === 'zh' ? '暂无AI报告' : 'No AI report yet'))}</p>
+            <p class="text-secondary text-[12px]" data-quality-ai-findings>${escapeHtml((ai.key_findings || []).join('； '))}</p>
+            <p class="text-secondary text-[12px]" data-quality-ai-actions>${escapeHtml((ai.actions || []).join('； '))}</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div class="border border-outline-variant p-2">
                 <h4 class="font-label-caps text-label-caps text-secondary mb-1">${escapeHtml(lang() === 'zh' ? '时间趋势' : 'Time Trend')}</h4>
@@ -2326,33 +2851,44 @@
               </div>
               <div class="border border-outline-variant p-2">
                 <h4 class="font-label-caps text-label-caps text-secondary mb-1">${escapeHtml(lang() === 'zh' ? '重点食安问题' : 'Food Safety Issues')}</h4>
-                <p class="text-body-sm text-primary">${escapeHtml((ai.food_safety_issues || []).join('、') || (lang() === 'zh' ? '暂无' : 'None'))}</p>
-                <p class="text-secondary text-[12px] mt-2">${escapeHtml(ai.trend_observation || '')}</p>
+                <p class="text-body-sm text-primary" data-quality-food-safety>${escapeHtml((ai.food_safety_issues || []).join('、') || (lang() === 'zh' ? '暂无' : 'None'))}</p>
+                <p class="text-secondary text-[12px] mt-2" data-quality-trend-observation>${escapeHtml(ai.trend_observation || '')}</p>
               </div>
             </div>
             <div class="border border-outline-variant p-2 space-y-2">
               <div class="flex flex-wrap gap-2">
                 <button class="px-2 py-1 border border-outline-variant text-body-sm" data-quality-chart="trend">${escapeHtml(lang() === 'zh' ? '趋势' : 'Trend')}</button>
                 <button class="px-2 py-1 border border-outline-variant text-body-sm" data-quality-chart="platform">${escapeHtml(lang() === 'zh' ? '平台' : 'Platform')}</button>
-                <button class="px-2 py-1 border border-outline-variant text-body-sm" data-quality-chart="keywords">${escapeHtml(lang() === 'zh' ? '词频' : 'Keywords')}</button>
+                <button class="px-2 py-1 border border-outline-variant text-body-sm" data-quality-chart="keywords">${escapeHtml(lang() === 'zh' ? '业务关键词' : 'Business Keywords')}</button>
                 <button class="px-2 py-1 border border-outline-variant text-body-sm" data-quality-chart="clusters">${escapeHtml(lang() === 'zh' ? '聚类' : 'Clusters')}</button>
+                <button class="px-2 py-1 border border-outline-variant text-body-sm" data-quality-chart="products">${escapeHtml(lang() === 'zh' ? '产品需求' : 'Product Demand')}</button>
               </div>
-              <div data-quality-panel="trend">
+              <div data-quality-panel="trend" style="${selectedQualityChart === 'trend' ? '' : 'display:none'}">
                 ${daily.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-28 text-body-sm text-primary">${escapeHtml(String(item.date || '-').slice(5))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-primary" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxTrend) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无趋势数据' : 'No trend data')}</div>`}
               </div>
-              <div data-quality-panel="platform" style="display:none">
+              <div data-quality-panel="platform" style="${selectedQualityChart === 'platform' ? '' : 'display:none'}">
                 ${platformVolume.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(platformLabel(item.platform || ''))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-primary" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxPlatform) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无平台数据' : 'No platform data')}</div>`}
               </div>
-              <div data-quality-panel="keywords" style="display:none">
+              <div data-quality-panel="keywords" style="${selectedQualityChart === 'keywords' ? '' : 'display:none'}">
                 ${keywords.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(String(item.keyword || ''))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-[#ff9800]" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxKeyword) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无关键词' : 'No keywords')}</div>`}
               </div>
-              <div data-quality-panel="clusters" style="display:none">
+              <div data-quality-panel="clusters" style="${selectedQualityChart === 'clusters' ? '' : 'display:none'}">
                 ${clusters.map(item => `<div class="flex items-center gap-2 mb-1"><div class="w-36 truncate text-body-sm text-primary">${escapeHtml(String(item.cluster || ''))}</div><div class="flex-1 h-2 bg-surface-container-high"><div class="h-2 bg-[#8e44ad]" style="width:${Math.max(6, Math.round((Number(item.count || 0) / maxCluster) * 100))}%"></div></div><div class="w-12 text-right font-data-mono text-data-mono">${Number(item.count || 0)}</div></div>`).join('') || `<div class="text-secondary">${escapeHtml(lang() === 'zh' ? '暂无聚类结果' : 'No clusters')}</div>`}
+              </div>
+              <div data-quality-panel="products" style="${selectedQualityChart === 'products' ? '' : 'display:none'}">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  ${productRows(lang() === 'zh' ? '高评分关联商品' : 'Most-liked Items', productDemand.liked)}
+                  ${productRows(lang() === 'zh' ? '低评分关联商品' : 'Most-complained Items', productDemand.disliked)}
+                </div>
               </div>
             </div>
             <div class="border border-outline-variant p-2">
               <h4 class="font-label-caps text-label-caps text-secondary mb-1">${escapeHtml(lang() === 'zh' ? '高风险评论样本' : 'High-risk Samples')}</h4>
               <ul class="space-y-2">${sampleRows}</ul>
+            </div>
+            <div class="border border-outline-variant p-2">
+              <h4 class="font-label-caps text-label-caps text-secondary mb-1">${escapeHtml(lang() === 'zh' ? '个性化/低频但重要明细' : 'Unique Low-frequency Details')}</h4>
+              <ul class="space-y-2">${notableRows}</ul>
             </div>
             <div class="border border-outline-variant p-2">
               <h4 class="font-label-caps text-label-caps text-secondary mb-1">${escapeHtml(lang() === 'zh' ? '实时评论分析区' : 'Realtime Review Analysis')}</h4>
@@ -2362,9 +2898,9 @@
               </table>
             </div>
           </section>
-          <section class="bg-surface-container-lowest border border-outline p-4 space-y-3">
+          <section class="bg-surface-container-lowest border border-outline p-4 space-y-3" data-quality-focus-target="ai">
             <h3 class="font-title-sm text-title-sm text-primary">${escapeHtml(lang() === 'zh' ? '报告构建与模型调试' : 'Report Builder & Model Debug')}</h3>
-            <textarea id="heytea-quality-draft" class="w-full border border-outline-variant p-2 text-body-sm" rows="6" placeholder="${escapeHtml(lang() === 'zh' ? '生成/编辑质量报告草稿...' : 'Generate/edit quality report draft...')}"></textarea>
+            <textarea id="heytea-quality-draft" class="w-full border border-outline-variant p-2 text-body-sm" rows="6" placeholder="${escapeHtml(lang() === 'zh' ? '生成/编辑质量报告草稿...' : 'Generate/edit quality report draft...')}">${escapeHtml(savedDraft)}</textarea>
             <div class="flex flex-wrap gap-2">
               <button type="button" class="px-3 py-2 border border-primary text-primary" data-quality-draft="build">${escapeHtml(lang() === 'zh' ? '生成草稿' : 'Build Draft')}</button>
               <button type="button" class="px-3 py-2 border border-outline-variant text-primary" data-quality-draft="export">${escapeHtml(lang() === 'zh' ? '导出草稿' : 'Export Draft')}</button>
@@ -2377,6 +2913,19 @@
               <button type="button" class="mt-2 px-3 py-2 border border-outline-variant text-primary" data-quality-model-smoke="run">${escapeHtml(lang() === 'zh' ? '模型连通测试' : 'Run Model Smoke')}</button>
               <pre id="heytea-quality-model-output" class="mt-2 text-[11px] border border-outline-variant p-2 max-h-[180px] overflow-auto">${escapeHtml(lang() === 'zh' ? '等待测试...' : 'Waiting...')}</pre>
             </div>
+            <div class="border border-outline-variant p-2 bg-surface-container-low space-y-2">
+              <div class="font-label-caps text-label-caps text-secondary">${escapeHtml(lang() === 'zh' ? '质量阈值（自动保存）' : 'Quality Thresholds (Auto-save)')}</div>
+              <label class="block text-body-sm text-secondary">${escapeHtml(lang() === 'zh' ? '字段完整率下限' : 'Min field completeness')}
+                <input class="w-full border border-outline-variant p-2 text-body-sm" type="number" min="0" max="1" step="0.01" data-quality-setting-path="quality.min_field_completeness" value="${escapeHtml(String(qualitySettings.min_field_completeness ?? 0.95))}" />
+              </label>
+              <label class="block text-body-sm text-secondary">${escapeHtml(lang() === 'zh' ? '订单详情覆盖率下限' : 'Min order detail coverage')}
+                <input class="w-full border border-outline-variant p-2 text-body-sm" type="number" min="0" max="1" step="0.01" data-quality-setting-path="quality.min_detail_coverage" value="${escapeHtml(String(qualitySettings.min_detail_coverage ?? 0.9))}" />
+              </label>
+              <label class="block text-body-sm text-secondary">${escapeHtml(lang() === 'zh' ? '重复率上限' : 'Max duplicate rate')}
+                <input class="w-full border border-outline-variant p-2 text-body-sm" type="number" min="0" max="1" step="0.001" data-quality-setting-path="quality.max_duplicate_rate" value="${escapeHtml(String(qualitySettings.max_duplicate_rate ?? 0.01))}" />
+              </label>
+              <pre id="heytea-quality-save-output" class="text-[11px] border border-outline-variant p-2">${escapeHtml(lang() === 'zh' ? '修改后自动保存到后端配置。' : 'Changes are persisted to backend settings automatically.')}</pre>
+            </div>
             <h3 class="font-title-sm text-title-sm text-primary">${escapeHtml(lang() === 'zh' ? '知识库（报告风格/规则）' : 'Knowledge Base (Style & Rules)')}</h3>
             <textarea id="heytea-kb-content" class="w-full border border-outline-variant p-2 text-body-sm" rows="5" placeholder="${escapeHtml(lang() === 'zh' ? '粘贴历史质量报告、规则、术语要求...' : 'Paste previous reports, rules, terminology...')}"></textarea>
             <div class="flex flex-wrap gap-2">
@@ -2384,18 +2933,78 @@
               <button type="button" class="px-3 py-2 border border-primary text-primary" data-kb-add="manual">${escapeHtml(lang() === 'zh' ? '添加文本' : 'Add Text')}</button>
             </div>
             <div class="flex items-center gap-2">
-              <input id="heytea-kb-file" type="file" accept=".txt,.md,.json,.csv" class="text-body-sm" />
+              <input id="heytea-kb-file" type="file" accept=".txt,.md,.json,.csv,.xlsx,.xlsm,.docx,.pdf" class="text-body-sm" />
               <button type="button" class="px-3 py-2 border border-outline-variant text-primary" data-kb-add="file">${escapeHtml(lang() === 'zh' ? '上传文件' : 'Upload File')}</button>
             </div>
+            <pre id="heytea-kb-upload-status" class="text-[11px] border border-outline-variant p-2">${escapeHtml(lang() === 'zh' ? '支持 TXT/MD/JSON/CSV/XLSX/DOCX/PDF，上传后立即写入知识库并参与报告生成。' : 'Supports TXT/MD/JSON/CSV/XLSX/DOCX/PDF. Uploads are persisted immediately and used in report generation.')}</pre>
             <ul class="space-y-2 max-h-[320px] overflow-auto">${knowledgeRows}</ul>
           </section>
         </div>`;
       panel.querySelectorAll('[data-quality-chart]').forEach(button => button.addEventListener('click', () => {
         const view = button.dataset.qualityChart;
+        localStorage.setItem('heytea_quality_chart_view', String(view || 'trend'));
         panel.querySelectorAll('[data-quality-panel]').forEach(section => {
           section.style.display = section.dataset.qualityPanel === view ? '' : 'none';
         });
       }));
+      apiJsonSoft(`/api/unified/insight?days=${days}&limit=1600${requestedQualityPlatformParam}`, null).then(result => {
+        if (!isActiveQualityRender(renderSeq) || !result.ok || !result.data?.ok) return;
+        const serverAi = result.data.ai || {};
+        ai = serverAi;
+        const summary = panel.querySelector('[data-quality-ai-summary]');
+        const findings = panel.querySelector('[data-quality-ai-findings]');
+        const actions = panel.querySelector('[data-quality-ai-actions]');
+        const foodSafety = panel.querySelector('[data-quality-food-safety]');
+        const trend = panel.querySelector('[data-quality-trend-observation]');
+        if (summary) summary.textContent = String(serverAi.summary || summary.textContent || '');
+        if (findings) findings.textContent = String((serverAi.key_findings || []).join('； ') || findings.textContent || '');
+        if (actions) actions.textContent = String((serverAi.actions || []).join('； ') || actions.textContent || '');
+        if (foodSafety) foodSafety.textContent = String((serverAi.food_safety_issues || []).join('、') || (lang() === 'zh' ? '暂无' : 'None'));
+        if (trend) trend.textContent = String(serverAi.trend_observation || trend.textContent || '');
+      }).catch(() => {});
+      panel.querySelector('[data-quality-platform-filter]')?.addEventListener('change', async event => {
+        localStorage.setItem('heytea_quality_platform', String(event.target.value || ''));
+        panel.innerHTML = `<div class="border border-outline-variant p-3 text-secondary text-body-sm">${escapeHtml(lang() === 'zh' ? '正在按平台刷新分析...' : 'Refreshing analysis by platform...')}</div>`;
+        await initQualityReportPage();
+      });
+      panel.querySelector('[data-quality-keyword-mode]')?.addEventListener('change', async event => {
+        localStorage.setItem('heytea_quality_keyword_mode', String(event.target.value || 'all'));
+        panel.innerHTML = `<div class="border border-outline-variant p-3 text-secondary text-body-sm">${escapeHtml(lang() === 'zh' ? '正在按主题刷新分析...' : 'Refreshing analysis by topic...')}</div>`;
+        await initQualityReportPage();
+      });
+      panel.querySelector('#heytea-quality-draft')?.addEventListener('input', event => {
+        localStorage.setItem(draftStorageKey, String(event.target.value || ''));
+      });
+      let qualitySaveTimer = null;
+      const saveQualitySettings = async () => {
+        const output = panel.querySelector('#heytea-quality-save-output');
+        const patch = {};
+        panel.querySelectorAll('[data-quality-setting-path]').forEach(input => {
+          const value = input.type === 'number' ? Number(input.value) : input.value;
+          setPath(patch, input.dataset.qualitySettingPath, value);
+        });
+        if (output) output.textContent = lang() === 'zh' ? '正在保存质量配置...' : 'Saving quality settings...';
+        const result = await apiJson('/api/unified/settings', { method: 'POST', body: JSON.stringify(patch) });
+        window.__heyteaSettings = result.settings;
+        if (output) output.textContent = `${lang() === 'zh' ? '已自动保存' : 'Auto-saved'} · ${formatIsoInZone(new Date().toISOString())}`;
+      };
+      panel.querySelectorAll('[data-quality-setting-path]').forEach(input => {
+        const onSave = () => {
+          clearTimeout(qualitySaveTimer);
+          qualitySaveTimer = setTimeout(() => saveQualitySettings().catch(error => {
+            const output = panel.querySelector('#heytea-quality-save-output');
+            if (output) output.textContent = `${lang() === 'zh' ? '保存失败' : 'Save failed'}: ${error.message || error}`;
+          }), 700);
+        };
+        input.addEventListener('input', onSave);
+        input.addEventListener('change', () => {
+          clearTimeout(qualitySaveTimer);
+          saveQualitySettings().catch(error => {
+            const output = panel.querySelector('#heytea-quality-save-output');
+            if (output) output.textContent = `${lang() === 'zh' ? '保存失败' : 'Save failed'}: ${error.message || error}`;
+          });
+        });
+      });
       panel.querySelector('[data-quality-draft="build"]')?.addEventListener('click', () => {
         const draft = panel.querySelector('#heytea-quality-draft');
         if (!draft) return;
@@ -2403,9 +3012,10 @@
         const actionText = (ai.actions || []).join('\n- ');
         const keywordText = keywords.slice(0, 8).map(item => `${item.keyword} (${item.count})`).join(', ');
         const content = lang() === 'zh'
-          ? `# 质量报告草稿（${days}天）\n\n## 总览\n- 评论总数：${reviews.length}\n- 风险评论：${Number(insight.metrics?.risk_count || 0)}\n- 字段完整率：${Number(metrics.field_completion_rate || 0).toFixed(1)}%\n- 订单详情覆盖率：${Number(metrics.detail_coverage || 0).toFixed(1)}%\n\n## AI解读\n${ai.summary || '暂无'}\n\n## 关键发现\n- ${findingText || '暂无'}\n\n## 高频关键词\n${keywordText || '暂无'}\n\n## 改进建议\n- ${actionText || '暂无'}\n`
-          : `# Quality Report Draft (${days}d)\n\n## Overview\n- Review count: ${reviews.length}\n- Risk reviews: ${Number(insight.metrics?.risk_count || 0)}\n- Field completion: ${Number(metrics.field_completion_rate || 0).toFixed(1)}%\n- Order detail coverage: ${Number(metrics.detail_coverage || 0).toFixed(1)}%\n\n## AI Insight\n${ai.summary || 'N/A'}\n\n## Key Findings\n- ${findingText || 'N/A'}\n\n## Top Keywords\n${keywordText || 'N/A'}\n\n## Actions\n- ${actionText || 'N/A'}\n`;
+          ? `# 质量报告草稿（${days}天）\n\n## 分析范围\n- 平台/主题：${filteredScopeLabel}\n- 评论样本：${filteredReviews.length}/${reviews.length}\n\n## 总览\n- 风险评论：${Number(insight.metrics?.risk_count || 0)}\n- 字段完整率：${Number(metrics.field_completion_rate || 0).toFixed(1)}%\n- 订单详情覆盖率：${Number(metrics.detail_coverage || 0).toFixed(1)}%\n\n## AI解读\n${ai.summary || '暂无'}\n\n## 关键发现\n- ${findingText || '暂无'}\n\n## 业务关键词\n${keywordText || '暂无'}\n\n## 个性化明细\n${notableDetails.slice(0, 5).map(item => `- ${item.store}：${reviewShort(item.text, 120)}`).join('\n') || '- 暂无'}\n\n## 改进建议\n- ${actionText || '暂无'}\n`
+          : `# Quality Report Draft (${days}d)\n\n## Scope\n- Platform/topic: ${filteredScopeLabel}\n- Review sample: ${filteredReviews.length}/${reviews.length}\n\n## Overview\n- Risk reviews: ${Number(insight.metrics?.risk_count || 0)}\n- Field completion: ${Number(metrics.field_completion_rate || 0).toFixed(1)}%\n- Order detail coverage: ${Number(metrics.detail_coverage || 0).toFixed(1)}%\n\n## AI Insight\n${ai.summary || 'N/A'}\n\n## Key Findings\n- ${findingText || 'N/A'}\n\n## Business Keywords\n${keywordText || 'N/A'}\n\n## Unique Details\n${notableDetails.slice(0, 5).map(item => `- ${item.store}: ${reviewShort(item.text, 120)}`).join('\n') || '- N/A'}\n\n## Actions\n- ${actionText || 'N/A'}\n`;
         draft.value = content;
+        localStorage.setItem(draftStorageKey, content);
       });
       panel.querySelector('[data-quality-draft="export"]')?.addEventListener('click', () => {
         const draft = panel.querySelector('#heytea-quality-draft');
@@ -2422,9 +3032,13 @@
       });
       panel.querySelector('[data-quality-model-smoke="run"]')?.addEventListener('click', async () => {
         const output = panel.querySelector('#heytea-quality-model-output');
-        if (output) output.textContent = lang() === 'zh' ? '测试中...' : 'Running...';
-        const result = await apiJson('/api/unified/model-smoke', { method: 'POST', body: JSON.stringify({ provider: activeProvider }) });
-        if (output) output.textContent = JSON.stringify(result.result || result, null, 2);
+        try {
+          if (output) output.textContent = lang() === 'zh' ? '测试中...' : 'Running...';
+          const result = await apiJson('/api/unified/model-smoke', { method: 'POST', body: JSON.stringify({ provider: activeProvider }) });
+          if (output) output.textContent = JSON.stringify(result.result || result, null, 2);
+        } catch (error) {
+          if (output) output.textContent = `${lang() === 'zh' ? '模型测试失败' : 'Model smoke failed'}: ${error.message || error}`;
+        }
       });
 
       panel.querySelector('[data-kb-add="manual"]')?.addEventListener('click', async () => {
@@ -2434,20 +3048,34 @@
           notify(lang() === 'zh' ? '请先输入知识内容' : 'Please input knowledge content first');
           return;
         }
-        await apiJson('/api/unified/knowledge', { method: 'POST', body: JSON.stringify({ name, content, source_type: 'manual' }) });
-        notify(lang() === 'zh' ? '知识库已更新' : 'Knowledge base updated');
-        await initQualityReportPage();
+        try {
+          const result = await apiJson('/api/unified/knowledge', { method: 'POST', body: JSON.stringify({ name, content, source_type: 'manual' }) });
+          if (!result.ok) throw new Error(result.error || 'knowledge_save_failed');
+          notify(lang() === 'zh' ? '知识库已更新' : 'Knowledge base updated');
+          await initQualityReportPage();
+        } catch (error) {
+          notify(`${lang() === 'zh' ? '知识库保存失败：' : 'Knowledge save failed: '}${error.message || error}`);
+        }
       });
       panel.querySelector('[data-kb-add="file"]')?.addEventListener('click', async () => {
         const file = panel.querySelector('#heytea-kb-file')?.files?.[0];
+        const status = panel.querySelector('#heytea-kb-upload-status');
         if (!file) {
           notify(lang() === 'zh' ? '请选择文件' : 'Please select a file');
           return;
         }
-        const text = await file.text();
-        await apiJson('/api/unified/knowledge', { method: 'POST', body: JSON.stringify({ name: file.name, content: text, source_type: 'file' }) });
-        notify(lang() === 'zh' ? '文件已加入知识库' : 'File imported to knowledge base');
-        await initQualityReportPage();
+        try {
+          if (status) status.textContent = `${lang() === 'zh' ? '正在上传并解析' : 'Uploading and parsing'}: ${file.name}`;
+          const content_base64 = arrayBufferToBase64(await file.arrayBuffer());
+          const result = await apiJson('/api/unified/knowledge/upload', { method: 'POST', body: JSON.stringify({ filename: file.name, content_base64 }) });
+          if (!result.ok) throw new Error(result.error || 'upload_failed');
+          if (status) status.textContent = `${lang() === 'zh' ? '上传成功' : 'Upload saved'}: ${file.name} · ${Number(result.chars || 0)} chars`;
+          notify(lang() === 'zh' ? '文件已加入知识库' : 'File imported to knowledge base');
+          await initQualityReportPage();
+        } catch (error) {
+          if (status) status.textContent = `${lang() === 'zh' ? '上传失败' : 'Upload failed'}: ${error.message || error}`;
+          notify(`${lang() === 'zh' ? '上传失败：' : 'Upload failed: '}${error.message || error}`);
+        }
       });
       panel.querySelectorAll('[data-kb-remove]').forEach(button => button.addEventListener('click', async () => {
         const id = button.dataset.kbRemove;
@@ -2456,6 +3084,7 @@
         notify(lang() === 'zh' ? '知识条目已删除' : 'Knowledge entry removed');
         await initQualityReportPage();
       }));
+      applyQualityFocus(panel);
       if (endpointErrors.length) {
         const endpointKey = endpointErrors.join('|');
         const previous = sessionStorage.getItem('heytea_quality_endpoint_errors') || '';
@@ -2725,9 +3354,207 @@
     const value = String(text || '').replace(/\s+/g, ' ').trim();
     return value.length > max ? value.slice(0, max - 1) + '…' : value;
   }
+  function validReviewText(value) {
+    const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+    if (!text || ['-', 'none', 'null', 'no data', 'n/a', 'empty'].includes(text.toLowerCase())) return '';
+    if (/^[\d\s:：\-.,，。/]+$/.test(text)) return '';
+    return text;
+  }
+  function isNoiseOrderDetail(value) {
+    const text = String(value ?? '').trim();
+    if (!validReviewText(text)) return true;
+    const cleaned = cleanOrderDetailText(text);
+    if (!validReviewText(cleaned)) return true;
+    const lower = text.toLowerCase();
+    const markers = ['order', 'item', 'qty', 'quantity', 'price', 'subtotal', 'total', 'product', 'goods', '订单', '商品', '数量', '单价', '价格', '小计', '结算'];
+    const hasMarker = markers.some(marker => lower.includes(marker.toLowerCase()));
+    const hasMoney = /(?:[$€£¥]|HK\$|MOP|RM|SGD|USD|AUD|CAD)\s*\d/i.test(text);
+    const hasQuantity = /(?:^|\s)(?:x\s*)?\d+\s*(?:份|杯|件|pcs?|items?)\b/i.test(text);
+    return !(hasMarker || hasMoney || hasQuantity);
+  }
+  function cleanOrderDetailText(value) {
+    return String(value ?? '')
+      .replace(/\r/g, '\n')
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => {
+        if (!line) return false;
+        const lower = line.toLowerCase();
+        if (/^[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}$/.test(line)) return false;
+        if (lower.includes('.owner') || lower.includes('owner a') || lower.includes('owner b')) return false;
+        if (/^[A-Za-z]:[\\/].+/.test(line) || /exports[\\/].+\.jsonl?$/i.test(line)) return false;
+        return true;
+      })
+      .join('\n')
+      .trim();
+  }
+  function cleanCustomerDisplay(value) {
+    return String(value ?? '')
+      .replace(/\b[a-fA-F0-9]{16,64}\b/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  function cleanReviewIdentityValue(value, max = 220) {
+    const text = String(value ?? '').replace(/\s+/g, ' ').trim();
+    if (!text || ['-', 'none', 'null', 'no data', 'n/a'].includes(text.toLowerCase())) return '';
+    return text.toLowerCase().slice(0, max);
+  }
+  function reviewFuzzyBaseKey(review) {
+    const platform = canonicalUiPlatform(review.platform || '');
+    const store = cleanReviewIdentityValue(review.store || review.store_id, 160);
+    const rating = cleanReviewIdentityValue(review.rating, 20);
+    const reviewTime = cleanReviewIdentityValue(String(review.review_time || '').slice(0, 16), 40);
+    return `${platform}|${store}|${rating}|${reviewTime}`;
+  }
+  function reviewTextIdentity(review, max = 2000) {
+    const text = String(review?.review || review?.translated_review || '')
+      .replace(/[\ue000-\uf8ff]/g, ' ')
+      .replace(/(?:…|\.\.\.)\s*(?:更多|more|show\s+more).*$/is, '');
+    return cleanReviewIdentityValue(text, max);
+  }
+  function sameReviewText(left, right) {
+    if (!left || !right) return false;
+    if (left === right) return true;
+    const shorter = left.length <= right.length ? left : right;
+    const longer = left.length <= right.length ? right : left;
+    if (shorter.length < 40) return false;
+    if (longer.includes(shorter)) return true;
+    if (shorter.length >= 80 && shorter.slice(0, 96) === longer.slice(0, 96)) return true;
+    const a = shorter.slice(0, 800);
+    const b = longer.slice(0, 800);
+    const grams = value => {
+      const out = new Set();
+      for (let i = 0; i < Math.max(1, value.length - 2); i += 1) out.add(value.slice(i, i + 3));
+      return out;
+    };
+    const ga = grams(a);
+    const gb = grams(b);
+    let hits = 0;
+    ga.forEach(item => { if (gb.has(item)) hits += 1; });
+    return hits / Math.max(1, Math.min(ga.size, gb.size)) >= 0.88;
+  }
+  function reviewIdentityKey(review) {
+    const platform = canonicalUiPlatform(review.platform || '');
+    const orderId = cleanReviewIdentityValue(review.order_id || review.order_sn || extractOrderIdFromText(review.order_detail || ''), 120);
+    if (orderId) return `order|${platform}|${orderId}`;
+    const store = cleanReviewIdentityValue(review.store || review.store_id, 160);
+    const customer = cleanReviewIdentityValue(review.customer, 120);
+    const rating = cleanReviewIdentityValue(review.rating, 20);
+    if (platform === 'google_maps' && store && customer) return `google_user|${platform}|${store}|${customer}|${rating}`;
+    const reviewText = cleanReviewIdentityValue(review.review || review.translated_review, 260);
+    if (reviewText) return `text|${platform}|${store}|${customer}|${rating}|${reviewText}`;
+    const reviewId = cleanReviewIdentityValue(review.review_id, 160);
+    const sourceFile = cleanReviewIdentityValue(review.source_file, 240);
+    const reviewIdBase = reviewId.replace(/[-_]\d{1,6}$/, '');
+    if (reviewId && reviewId.length >= 10 && sourceFile && !sourceFile.includes(reviewId) && !sourceFile.includes(reviewIdBase)) return `review_id|${platform}|${reviewId}`;
+    const reviewTime = cleanReviewIdentityValue(String(review.review_time || '').slice(0, 10), 40);
+    if (reviewTime || customer || store || rating) return `rating_only|${platform}|${reviewTime}|${customer}|${rating}|${store}`;
+    return `fallback|${platform}|${sourceFile}`;
+  }
+  function meaningfulReviewValue(value) {
+    if (value === undefined || value === null) return false;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    const text = String(value).trim();
+    return Boolean(text) && !['-', 'none', 'null', 'no data', 'n/a'].includes(text.toLowerCase());
+  }
+  function reviewCompletenessScore(review) {
+    let score = 0;
+    ['platform', 'country', 'store', 'store_id', 'rating', 'review', 'translated_review', 'customer', 'review_time', 'order_id'].forEach(field => {
+      if (meaningfulReviewValue(review[field])) score += 4;
+    });
+    if (Array.isArray(review.ordered_items) && review.ordered_items.length) {
+      score += 18 + Math.min(review.ordered_items.length, 8);
+      score += review.ordered_items.filter(item => item && meaningfulReviewValue(orderedItemPrice(item))).length;
+    }
+    if (meaningfulReviewValue(review.order_detail)) score += 18 + Math.min(String(review.order_detail || '').length, 300) / 30;
+    if (Array.isArray(review.image_urls) && review.image_urls.length) score += 10 + Math.min(review.image_urls.length, 6);
+    if (/exports[\\/]+runs/i.test(String(review.source_file || ''))) score += 6;
+    return score;
+  }
+  function mergeReviewRecords(existing, incoming) {
+    const primary = reviewCompletenessScore(incoming) > reviewCompletenessScore(existing) ? incoming : existing;
+    const secondary = primary === incoming ? existing : incoming;
+    const merged = { ...primary };
+    Object.entries(secondary || {}).forEach(([key, value]) => {
+      if (!meaningfulReviewValue(merged[key]) && meaningfulReviewValue(value)) {
+        merged[key] = value;
+        return;
+      }
+      if (key === 'image_urls') {
+        const urls = [];
+        [merged[key], value].forEach(list => (Array.isArray(list) ? list : [list]).forEach(url => {
+          if (meaningfulReviewValue(url) && !urls.includes(url)) urls.push(url);
+        }));
+        merged[key] = urls;
+      } else if (key === 'ordered_items') {
+        const current = Array.isArray(merged[key]) ? merged[key] : [];
+        const extra = Array.isArray(value) ? value : [];
+        if (orderItemsScore(extra) > orderItemsScore(current) || (orderItemsScore(extra) === orderItemsScore(current) && normalizeOrderItemsForDisplay(extra).length > normalizeOrderItemsForDisplay(current).length)) {
+          merged[key] = extra;
+        }
+      } else if (key === 'order_detail' && String(value || '').length > String(merged[key] || '').length) {
+        merged[key] = value;
+      } else if (key === 'raw_json' && merged[key] && value && typeof merged[key] === 'object' && typeof value === 'object') {
+        merged[key] = { ...value, ...merged[key] };
+      }
+    });
+    merged.has_order = Boolean(merged.order_id || meaningfulReviewValue(merged.order_detail) || (Array.isArray(merged.ordered_items) && merged.ordered_items.length));
+    merged.has_image = Boolean(Array.isArray(merged.image_urls) && merged.image_urls.length);
+    return merged;
+  }
+  function dedupeReviewRecords(reviews) {
+    const byKey = new Map();
+    const fuzzyBuckets = new Map();
+    (Array.isArray(reviews) ? reviews : []).forEach(review => {
+      review.order_detail = cleanOrderDetailText(review?.order_detail);
+      if (isNoiseOrderDetail(review?.order_detail)) review.order_detail = '';
+      review.review = validReviewText(review?.review);
+      review.translated_review = validReviewText(review?.translated_review);
+      review.customer = cleanCustomerDisplay(review?.customer);
+      const reviewText = cleanReviewIdentityValue(review?.review || review?.translated_review, 80);
+      const placeholderOnly = ['no data', '暂无', '暂无数据', 'empty', 'n/a'].includes(reviewText)
+        && !meaningfulReviewValue(review?.order_id)
+        && !meaningfulReviewValue(review?.order_detail)
+        && !(Array.isArray(review?.ordered_items) && review.ordered_items.length)
+        && !(Array.isArray(review?.image_urls) && review.image_urls.length);
+      if (placeholderOnly) return;
+      const rawReviewText = String(review?.review || review?.translated_review || '').trim();
+      const platformKey = canonicalUiPlatform(review?.platform || '');
+      const hasCoreReviewEvidence = meaningfulReviewValue(review?.rating)
+        || meaningfulReviewValue(review?.review_time)
+        || meaningfulReviewValue(review?.order_id);
+      if (platformKey === 'dianping' && !(meaningfulReviewValue(review?.rating) || meaningfulReviewValue(review?.review_time))) return;
+      if (!hasCoreReviewEvidence && /(商户服务|关于我们|请登录|登录\/注册|去\s*APP\s*查看更多内容|查看更多内容|美食|中国最贵的将军墓|上千瓶茅台|网红大滑梯|这个商场惊见|privacy policy|terms of use|sign in|log in|register|download app)/i.test(rawReviewText)) return;
+      const rawKey = reviewIdentityKey(review || {});
+      let key = rawKey;
+      const text = reviewTextIdentity(review || {});
+      if (!byKey.has(rawKey) && rawKey.startsWith('text|') && text) {
+        const bucketKey = reviewFuzzyBaseKey(review || {});
+        const bucket = fuzzyBuckets.get(bucketKey) || [];
+        const matched = bucket.find(candidateKey => sameReviewText(text, reviewTextIdentity(byKey.get(candidateKey))));
+        if (matched) key = matched;
+      }
+      byKey.set(key, byKey.has(key) ? mergeReviewRecords(byKey.get(key), review) : review);
+      if (key.startsWith('text|') && text) {
+        const bucketKey = reviewFuzzyBaseKey(review || {});
+        const bucket = fuzzyBuckets.get(bucketKey) || [];
+        if (!bucket.includes(key)) bucket.push(key);
+        fuzzyBuckets.set(bucketKey, bucket);
+      }
+    });
+    return Array.from(byKey.values());
+  }
   function starsHtml(rating) {
     const score = Math.max(0, Math.min(5, Math.round(Number(rating || 0))));
     return `<span class="font-data-mono text-data-mono">${'★'.repeat(score)}${'☆'.repeat(5 - score)}</span>`;
+  }
+  function extractOrderIdFromText(value) {
+    const text = String(value || '');
+    const explicit = text.match(/(?:订单号|訂單號|order\s*(?:id|no\.?|number|#))\s*[:：#]?\s*([A-Z]{0,6}\d{6,})/i);
+    if (explicit) return explicit[1];
+    const loose = text.match(/\b([A-Z]{1,6}\d{7,})\b/);
+    return loose ? loose[1] : '';
   }
   function isMostlyChineseText(text) {
     const value = String(text || '').trim();
@@ -2772,6 +3599,31 @@
     const pick = matches.map(x => String(x || '').trim()).filter(x => /\d/.test(x)).pop() || '';
     return pick;
   }
+  function orderItemScore(item) {
+    if (!item || typeof item !== 'object') return 0;
+    const serialized = JSON.stringify(item);
+    const name = orderedItemName(item);
+    const qty = orderedItemQty(item);
+    const price = orderedItemPrice(item);
+    let score = 0;
+    if (name && name !== '-') score += 2;
+    if (qty) score += 3;
+    if (price) score += 5;
+    if (/(商品|產品|产品|饮品|飲品|goods|product|item|price|单价|單價)/i.test(serialized)) score += 2;
+    if (/^(纽约|紐約|曼哈顿|曼哈頓|洛杉矶|洛杉磯|旧金山|舊金山|西雅图|西雅圖|United States|Canada|Australia|Singapore|Malaysia)$/i.test(String(name || '').trim())) score -= 10;
+    return score;
+  }
+  function normalizeOrderItemsForDisplay(items) {
+    return (Array.isArray(items) ? items : [])
+      .filter(item => orderItemScore(item) > 1)
+      .filter((item, index, all) => {
+        const key = `${orderedItemName(item)}|${orderedItemSpecs(item)}|${orderedItemQty(item)}|${orderedItemPrice(item)}`;
+        return all.findIndex(peer => `${orderedItemName(peer)}|${orderedItemSpecs(peer)}|${orderedItemQty(peer)}|${orderedItemPrice(peer)}` === key) === index;
+      });
+  }
+  function orderItemsScore(items) {
+    return normalizeOrderItemsForDisplay(items).reduce((sum, item) => sum + orderItemScore(item), 0);
+  }
   function extractOrderFallback(raw) {
     const containers = [];
     const texts = [];
@@ -2805,7 +3657,7 @@
       }
       if (typeof candidate === 'object') {
         const name = orderedItemName(candidate);
-        if (name && name !== '-') items.push(candidate);
+        if (name && name !== '-' && orderItemScore(candidate) > 1) items.push(candidate);
         Object.values(candidate).forEach(value => {
           if (value && typeof value === 'object') pushItem(value);
         });
@@ -2813,7 +3665,7 @@
     };
     containers.forEach(item => pushItem(item));
     return {
-      items: items.filter((item, index, all) => all.findIndex(peer => `${orderedItemName(peer)}|${orderedItemSpecs(peer)}|${orderedItemQty(peer)}|${orderedItemPrice(peer)}` === `${orderedItemName(item)}|${orderedItemSpecs(item)}|${orderedItemQty(item)}|${orderedItemPrice(item)}`) === index),
+      items: normalizeOrderItemsForDisplay(items),
       detail: texts.join('\n').slice(0, 12000),
     };
   }
@@ -2839,7 +3691,7 @@
       }
       return;
     }
-    const source = String(review.review || '').trim();
+    const source = validReviewText(review.review);
     if (!source || source === '-') {
       node.textContent = lang() === 'zh' ? '暂无译文' : 'No translation captured';
       return;
@@ -2887,15 +3739,20 @@
     const rating = reviewRating(review);
     const images = Array.isArray(review.image_urls) ? review.image_urls : [];
     const fallbackOrder = extractOrderFallback(review.raw_json || {});
-    const items = Array.isArray(review.ordered_items) && review.ordered_items.length ? review.ordered_items : fallbackOrder.items;
-    const orderDetailText = String(review.order_detail || '').trim() || fallbackOrder.detail || '-';
+    const directItems = normalizeOrderItemsForDisplay(review.ordered_items);
+    const items = directItems.length ? directItems : fallbackOrder.items;
+    const originalText = validReviewText(review.review);
+    const noTextLabel = lang() === 'zh' ? '该评价无文字内容，仅保留评分、图片或订单详情。' : 'No written review was captured; rating, images or order details are retained.';
+    const cleanedOrderDetail = cleanOrderDetailText(review.order_detail);
+    const orderDetailCandidate = isNoiseOrderDetail(cleanedOrderDetail) ? '' : cleanedOrderDetail;
+    const orderDetailText = orderDetailCandidate || fallbackOrder.detail || '-';
     aside.innerHTML = `<div class="p-container-padding border-b border-outline-variant bg-[#F5F5F5] sticky top-0 z-20">
       <div class="flex justify-between items-start mb-2 gap-2"><h3 class="font-headline-md text-headline-md text-primary">${escapeHtml(translatePhrase('Review Details'))}</h3><div class="flex gap-2 flex-wrap"><span class="inline-block px-2 py-0.5 bg-surface-container-highest border border-outline-variant text-primary font-label-caps text-label-caps uppercase rounded-none">${escapeHtml(translatePhrase('Full Text Expanded'))}</span>${review.translated_review ? `<span class="inline-block px-2 py-0.5 bg-primary text-on-primary font-label-caps text-label-caps uppercase rounded-none">${escapeHtml(translatePhrase('Translation Fetched'))}</span>` : ''}</div></div>
       <div class="flex items-center gap-4 text-body-sm text-secondary flex-wrap"><span class="flex items-center gap-1 font-data-mono text-data-mono"><span class="material-symbols-outlined text-[14px]">calendar_today</span>${escapeHtml(review.review_time || '-')}</span><span class="flex items-center gap-1 font-medium text-primary"><span class="material-symbols-outlined text-[14px]">store</span>${escapeHtml(reviewStore(review))}</span><span class="flex items-center gap-1 text-error"><span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">star</span>${escapeHtml(rating || '-')}</span></div>
     </div>
     <div class="p-container-padding space-y-6 flex-1">
       <div><h4 class="font-label-caps text-label-caps text-secondary uppercase mb-2 border-b border-outline-variant pb-1">${escapeHtml(translatePhrase('Content Analysis'))}</h4><div class="grid grid-cols-2 gap-4">
-        <div class="p-3 bg-background border border-outline-variant rounded-none"><span class="block font-label-caps text-label-caps text-secondary uppercase mb-2">${escapeHtml(translatePhrase('Original Text'))}</span><p class="font-body-md text-primary leading-relaxed whitespace-pre-wrap">${escapeHtml(review.review || '-')}</p></div>
+        <div class="p-3 bg-background border border-outline-variant rounded-none"><span class="block font-label-caps text-label-caps text-secondary uppercase mb-2">${escapeHtml(translatePhrase('Original Text'))}</span><p class="font-body-md text-primary leading-relaxed whitespace-pre-wrap">${escapeHtml(originalText || noTextLabel)}</p></div>
         <div class="p-3 bg-surface-container-low border border-outline-variant rounded-none"><span class="block font-label-caps text-label-caps text-secondary uppercase mb-2">${escapeHtml(translatePhrase('Chinese Translation'))}</span><p data-review-translation class="font-body-md text-secondary leading-relaxed whitespace-pre-wrap">${escapeHtml(reviewTranslationText(review) || (lang() === 'zh' ? '翻译中…' : 'Translating…'))}</p></div>
       </div></div>
       <div><h4 class="font-label-caps text-label-caps text-secondary uppercase mb-2 border-b border-outline-variant pb-1">${escapeHtml(translatePhrase('Evidence Images'))}</h4><div class="flex gap-2 overflow-x-auto pb-2">${images.length ? images.map(url => `<a href="${escapeHtml(url)}" target="_blank" rel="noreferrer" class="w-24 h-24 shrink-0 border border-outline-variant bg-surface-container-low hover:border-primary transition-colors"><img alt="review evidence" class="w-full h-full object-cover" src="${escapeHtml(url)}"></a>`).join('') : `<span class="text-secondary">-</span>`}</div></div>
@@ -2922,7 +3779,7 @@
       if (state.hasImage && !review.has_image) return false;
       if (state.hasOrder && !review.has_order) return false;
       if (state.keyword) {
-        const haystack = `${review.review || ''} ${review.translated_review || ''} ${review.order_detail || ''}`.toLowerCase();
+        const haystack = `${review.review || ''} ${review.translated_review || ''}`.toLowerCase();
         if (!haystack.includes(state.keyword.toLowerCase())) return false;
       }
       return true;
@@ -2944,7 +3801,7 @@
           <td class="py-2 px-3 align-top ${Number(review.rating || 0) <= 2 ? 'text-error' : ''}">${starsHtml(review.rating || 0)}</td>
           <td class="py-2 px-3 align-top text-secondary font-data-mono text-data-mono">${escapeHtml(review.review_time || '-')}</td>
           <td class="py-2 px-3 align-top">${escapeHtml(review.customer || '-')}</td>
-          <td class="py-2 px-3 align-top min-w-[150px] whitespace-normal">${escapeHtml(reviewShort(review.review || review.order_detail || '-'))}</td>
+          <td class="py-2 px-3 align-top min-w-[150px] whitespace-normal">${escapeHtml(reviewShort(validReviewText(review.review) || (lang() === 'zh' ? '无文字评论' : 'No text review')))}</td>
           <td class="py-2 px-3 align-top min-w-[150px] whitespace-normal text-secondary">${escapeHtml(reviewShort(reviewTranslationText(review) || '-'))}</td>
           <td class="py-2 px-3 align-top"><span class="inline-block px-2 py-0.5 ${sentiment === 'Negative' ? 'bg-error text-on-error' : sentiment === 'Positive' ? 'bg-primary text-on-primary' : 'bg-surface-container-highest text-primary'} font-label-caps text-label-caps uppercase rounded-none">${escapeHtml(translatePhrase(sentiment))}</span></td>
           <td class="py-2 px-3 align-top"><span class="inline-block px-2 py-0.5 bg-surface-container-highest text-primary font-label-caps text-label-caps uppercase rounded-none">${escapeHtml(reviewQuality(review))}</span></td>
@@ -2962,18 +3819,26 @@
   async function initReviewWorkbenchPage() {
     if (pageByPath() !== 'review_workbench') return;
     try {
-      const [payload, status] = await Promise.all([
-        apiJson(`/api/unified/reviews?days=${selectedDays()}&limit=300`),
+      const [payload, status, registry] = await Promise.all([
+        apiJson(`/api/unified/reviews?days=${selectedDays()}&limit=1200`),
         apiJson('/api/unified/status'),
+        apiJson('/api/unified/stores?limit=1000'),
       ]);
-      const reviews = payload.reviews || [];
+      const reviews = dedupeReviewRecords(payload.reviews || []);
+      const registryStores = Array.isArray(registry.stores) ? registry.stores : [];
       window.__heyteaReviews = { reviews, selectedId: reviews[0]?.review_id || '', country: '', platform: '', store: '', hasImage: false, hasOrder: false, keyword: '' };
       const selects = Array.from(document.querySelectorAll('main select'));
-      const countries = Array.from(new Set(reviews.map(reviewCountry).filter(x => x && x !== '-'))).sort();
+      const countries = Array.from(new Set([
+        ...reviews.map(reviewCountry),
+        ...registryStores.map(store => normalizeRegionText(String(store.country || '').trim())),
+      ].filter(x => x && x !== '-'))).sort();
       const platformsFromReviews = Array.from(new Set(reviews.map(reviewPlatform).filter(x => x && x !== '-')));
       const platformsFromStatus = Object.values(status.platforms || {}).map(item => item?.name).filter(Boolean);
       const platforms = Array.from(new Set([...platformsFromStatus, ...platformsFromReviews])).sort();
-      const stores = Array.from(new Set(reviews.map(reviewStore).filter(x => x && x !== '-'))).sort();
+      const stores = Array.from(new Set([
+        ...reviews.map(reviewStore),
+        ...registryStores.map(store => String(store.store_name || '').trim()),
+      ].filter(x => x && x !== '-'))).sort();
       if (selects[0]) { selects[0].innerHTML = `<option value="7">${escapeHtml(translatePhrase('Last 7 Days'))}</option><option value="30">${escapeHtml(translatePhrase('Last 30 Days'))}</option>`; selects[0].value = String(selectedDays()); selects[0].addEventListener('change', async () => { setSelectedDays(selects[0].value); await initReviewWorkbenchPage(); }); }
       if (selects[1]) { selects[1].innerHTML = `<option value="">${escapeHtml(translatePhrase('All'))}</option>${countries.map(x => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('')}`; selects[1].addEventListener('change', () => { window.__heyteaReviews.country = selects[1].value; renderReviewWorkbench(); }); }
       if (selects[2]) { selects[2].innerHTML = `<option value="">${escapeHtml(translatePhrase('All'))}</option>${platforms.map(x => `<option value="${escapeHtml(x)}">${escapeHtml(x)}</option>`).join('')}`; selects[2].addEventListener('change', () => { window.__heyteaReviews.platform = selects[2].value; renderReviewWorkbench(); }); }

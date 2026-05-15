@@ -101,6 +101,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--country-code", default="", help="Country code in exported rows")
     parser.add_argument("--file-tag", default="mfood", help="File name tag for output")
     parser.add_argument("--export-dir", default="", help="Override export directory")
+    parser.add_argument("--profile-name", default="", help="Override Playwright persistent profile name")
     return parser.parse_args()
 
 
@@ -578,15 +579,31 @@ async def run() -> dict[str, Any]:
     errors: list[str] = []
     reviews: list[dict[str, Any]] = []
 
-    config.profile_dir.mkdir(parents=True, exist_ok=True)
+    profile_name = clean_text(args.profile_name)
+    if not profile_name and clean_text(args.file_tag).lower() not in {"", "mfood"}:
+        profile_name = f"{clean_text(args.file_tag).lower()}_{config.key}"
+    profile_dir = DATA / "browser_profiles" / profile_name if profile_name else config.profile_dir
+    profile_dir.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as pw:
-        context = await pw.chromium.launch_persistent_context(
-            user_data_dir=str(config.profile_dir),
-            headless=args.headless,
-            viewport={"width": 1600, "height": 1000},
-            locale="zh-CN",
-            ignore_https_errors=True,
-        )
+        try:
+            context = await pw.chromium.launch_persistent_context(
+                user_data_dir=str(profile_dir),
+                headless=args.headless,
+                viewport={"width": 1600, "height": 1000},
+                locale="zh-CN",
+                ignore_https_errors=True,
+            )
+        except Exception as exc:
+            fallback_profile = DATA / "browser_profiles" / f"{profile_dir.name}_retry_{os.getpid()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            fallback_profile.mkdir(parents=True, exist_ok=True)
+            errors.append(f"persistent profile launch failed, retried with isolated profile: {exc}")
+            context = await pw.chromium.launch_persistent_context(
+                user_data_dir=str(fallback_profile),
+                headless=args.headless,
+                viewport={"width": 1600, "height": 1000},
+                locale="zh-CN",
+                ignore_https_errors=True,
+            )
         page = context.pages[0] if context.pages else await context.new_page()
         try:
             await ensure_logged_in(page, username, password, args.manual_login, args.portal_url, args.login_url)

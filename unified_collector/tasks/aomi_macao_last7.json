@@ -14,9 +14,9 @@
     "output_prefix": "unified_aomi_macao_last7"
   },
   "options": {
-    "portal_url": "",
-    "headless": false,
-    "manual_login": true,
+    "portal_url": "https://merchant.aomiapp.com/#/customer/evaluation",
+    "headless": true,
+    "manual_login": false,
     "max_pages": 20
   }
 }

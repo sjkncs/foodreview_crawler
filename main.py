@@ -3,12 +3,14 @@
 运行: python main.py
 访问: http://localhost:8080
 """
+import base64
 import json
+import difflib
 import os
 import re
 import sys
 import threading
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -43,6 +45,10 @@ RUNS_DIR = EXPORT_DIR / "runs"
 KNOWLEDGE_DIR = ROOT / "data" / "knowledge_base"
 URL_PATTERN = re.compile(r"https?://[^\s\"'<>]+")
 MONEY_PATTERN = re.compile(r"(?:[$¥￥€£₩]|HK\$|US\$|C\$|A\$|SG\$|RM)?\s*-?\d{1,6}(?:[,.]\d{1,2})?")
+ORDER_ID_PATTERNS = (
+    re.compile(r"(?:订单号|訂單號|order\s*(?:id|no\.?|number|#))\s*[:：#]?\s*([A-Z]{0,6}\d{6,})", re.IGNORECASE),
+    re.compile(r"\b([A-Z]{1,6}\d{7,})\b"),
+)
 _TRANSLATION_CACHE: dict[str, str] = {}
 _TRANSLATION_CACHE_LOCK = threading.RLock()
 _TRANSLATION_CACHE_MAX = 2000
@@ -174,6 +180,8 @@ def _safe_platform_data(data: dict) -> dict:
         safe["url"] = data["url"]
     if data.get("meta"):
         safe["meta"] = data["meta"]
+    if data.get("store_id"):
+        safe["store_id"] = data["store_id"]
     if data.get("note"):
         note = str(data["note"])
         lowered = note.lower()
@@ -203,7 +211,7 @@ def _load_safe_registry() -> dict:
             {
                 "jde": store.get("jde", ""),
                 "store_name": store.get("store_name", ""),
-                "country": store.get("country", ""),
+                "country": _normalize_region_name(str(store.get("country", ""))),
                 "country_code": store.get("country_code", ""),
                 "city": store.get("city", ""),
                 "platforms": platforms,
@@ -289,8 +297,31 @@ def _extract_nested_order_fields(raw: dict[str, Any]) -> tuple[list[dict[str, An
     item_containers: list[Any] = []
     detail_texts: list[str] = []
     seen_refs: set[int] = set()
-    item_key_tokens = ("item", "product", "sku", "goods", "dish", "menu", "detail", "line")
-    detail_key_tokens = ("orderdetail", "order_detail", "orderdetails", "detail", "items", "products", "goods", "remark")
+    item_key_tokens = ("item", "product", "sku", "goods", "dish", "menu", "line")
+    detail_key_tokens = (
+        "orderdetail",
+        "order_detail",
+        "orderdetails",
+        "orderitems",
+        "ordereditems",
+        "productview",
+        "items",
+        "products",
+        "goods",
+        "remark",
+    )
+    excluded_key_tokens = (
+        "reviewitemdetail",
+        "reviewdetail",
+        "subrating",
+        "subratings",
+        "ratingdetail",
+        "scoreitem",
+        "qualityflag",
+        "reviewtype",
+        "reviewquality",
+        "sourcefile",
+    )
 
     def walk(node: Any, depth: int = 0) -> None:
         if depth > 6:
@@ -302,13 +333,49 @@ def _extract_nested_order_fields(raw: dict[str, Any]) -> tuple[list[dict[str, An
         if isinstance(node, dict):
             for key, value in node.items():
                 key_l = str(key or "").lower().replace(" ", "").replace("-", "").replace("_", "")
-                if any(token in key_l for token in detail_key_tokens):
+                if any(token in key_l for token in excluded_key_tokens):
+                    continue
+                if any(token in key_l for token in detail_key_tokens) and not isinstance(value, str):
                     item_containers.append(value)
                 if isinstance(value, (dict, list, tuple)):
                     walk(value, depth + 1)
                 elif isinstance(value, str):
                     text = value.strip()
-                    if text and any(token in key_l for token in ("name", "spec", "qty", "price", "remark", "note", "detail")):
+                    excluded_context = any(
+                        token in key_l
+                        for token in (
+                            "reviewer",
+                            "customer",
+                            "author",
+                            "avatar",
+                            "area",
+                            "country",
+                            "restaurant",
+                            "store",
+                            "branch",
+                            "platform",
+                        )
+                    )
+                    order_context = any(
+                        token in key_l
+                        for token in (
+                            "order",
+                            "item",
+                            "product",
+                            "goods",
+                            "sku",
+                            "dish",
+                            "menu",
+                            "qty",
+                            "quantity",
+                            "count",
+                            "price",
+                            "amount",
+                            "subtotal",
+                            "remark",
+                        )
+                    )
+                    if text and order_context and not excluded_context:
                         detail_texts.append(text)
         elif isinstance(node, (list, tuple)):
             if node and all(isinstance(item, dict) for item in node):
@@ -317,10 +384,6 @@ def _extract_nested_order_fields(raw: dict[str, Any]) -> tuple[list[dict[str, An
                     item_containers.append(list(node))
             for value in node:
                 walk(value, depth + 1)
-        elif isinstance(node, str):
-            text = node.strip()
-            if text and len(text) <= 300 and re.search(r"[A-Za-z\u4e00-\u9fff]", text):
-                detail_texts.append(text)
 
     walk(raw)
     extracted_items: list[dict[str, Any]] = []
@@ -404,6 +467,20 @@ def _first(raw: dict[str, Any], *keys: str, default: Any = "") -> Any:
 
 
 def _parse_ordered_items(value: Any) -> list[dict[str, Any]]:
+    def _is_subrating_text(text: str) -> bool:
+        raw = str(text or "").strip()
+        if not raw:
+            return False
+        has_rating_labels = bool(re.search(r"(綜合|综合|口味|包裝|包装|配送|服務|服务)\s*[:：]\s*\d", raw))
+        has_item_signal = bool(
+            re.search(
+                r"([xX×]\s*\d+|商品|產品|产品|菜品|饮品|飲品|order\s*item|menu\s*item|product|item|goods)",
+                raw,
+                flags=re.IGNORECASE,
+            )
+        )
+        return has_rating_labels and not has_item_signal
+
     def _extract_money_token(text: str) -> str:
         raw = str(text or "").strip()
         if not raw:
@@ -434,6 +511,12 @@ def _parse_ordered_items(value: Any) -> list[dict[str, Any]]:
 
     def _normalize_item(item: dict[str, Any]) -> dict[str, Any]:
         normalized = dict(item)
+        text_candidates = [
+            str(normalized.get(key) or "")
+            for key in ("text", "name", "item", "itemName", "spec", "specs", "desc", "detail", "remark")
+        ]
+        if any(_is_subrating_text(text) for text in text_candidates):
+            return {}
         price_keys = (
             "unit_price",
             "unitPrice",
@@ -492,8 +575,19 @@ def _parse_ordered_items(value: Any) -> list[dict[str, Any]]:
         line = str(text or "").strip()
         if not line:
             return {}
+        if _is_subrating_text(line):
+            return {}
         price = _extract_money_token(line)
         qty = _parse_quantity(line)
+        has_item_marker = bool(
+            re.search(
+                r"(商品|產品|产品|菜品|饮品|飲品|订购清单|訂購清單|order\s*item|menu\s*item|product|item|goods)",
+                line,
+                flags=re.IGNORECASE,
+            )
+        )
+        if not (price or qty or has_item_marker):
+            return {}
         name = line
         if price:
             name = name.replace(price, " ")
@@ -547,11 +641,26 @@ def _parse_ordered_items(value: Any) -> list[dict[str, Any]]:
     normalized = []
     for item in items:
         if isinstance(item, dict):
-            normalized.append(_normalize_item(item))
+            normalized_item = _normalize_item(item)
+            if normalized_item:
+                normalized.append(normalized_item)
         elif item not in (None, ""):
             parsed = _parse_item_line(str(item))
-            normalized.append(_normalize_item(parsed or {"text": str(item)}))
+            normalized_item = _normalize_item(parsed or {"text": str(item)})
+            if normalized_item:
+                normalized.append(normalized_item)
     return normalized
+
+
+def _extract_order_id_from_text(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    for pattern in ORDER_ID_PATTERNS:
+        match = pattern.search(text)
+        if match:
+            return match.group(1).strip()
+    return ""
 
 
 def _extract_reviews_from_payload(payload: Any) -> tuple[dict[str, Any], list[dict[str, Any]]]:
@@ -623,18 +732,25 @@ def _normalize_ui_review(raw: dict[str, Any], payload: dict[str, Any], source_fi
         ordered_items = nested_items
     if (not order_detail or str(order_detail).strip() in {"", "-", "null", "None"}) and nested_detail:
         order_detail = nested_detail
+    order_detail = _clean_order_detail_text(order_detail)
+    if _is_noise_order_detail(order_detail):
+        order_detail = ""
     order_id = _first(raw, "order_id", "Order ID", "Order View ID")
+    if not _meaningful(order_id):
+        order_id = _extract_order_id_from_text(order_detail) or _extract_order_id_from_text(json.dumps(raw, ensure_ascii=False)[:6000])
     quality_flags = _as_list(_first(raw, "quality_flags", "Quality Flags"))
     review_id = _first(raw, "review_id", "id", "Review ID", default=f"{source_file.stem}-{index}")
-    review_text = str(review)
+    review_text = _valid_review_text(review)
     translated_text = _to_simplified_chinese_local(str(translated))
+    if not _valid_review_text(translated_text):
+        translated_text = ""
     if not translated_text and review_text and _is_mostly_chinese(review_text):
         translated_text = _to_simplified_chinese_local(review_text)
     return {
         "review_id": str(review_id),
         "run_id": _first(raw, "run_id", default=payload.get("run_id", "")),
         "platform": str(platform),
-        "country": str(country),
+        "country": _normalize_region_name(str(country)),
         "store": str(store),
         "store_id": str(_first(raw, "store_id", "Store ID", "branch_id", "jde", "JDE")),
         "rating": rating,
@@ -642,7 +758,7 @@ def _normalize_ui_review(raw: dict[str, Any], payload: dict[str, Any], source_fi
         "review": review_text,
         "review_language": str(_first(raw, "review_language", "language", "Language")),
         "translated_review": translated_text,
-        "customer": str(_first(raw, "customer", "Customer", "reviewer", "Reviewer", "Reviewer Name", "user_name", "User Name")),
+        "customer": _clean_customer_display(_first(raw, "customer", "Customer", "reviewer", "Reviewer", "Reviewer Name", "user_name", "User Name")),
         "review_time": str(review_time),
         "order_id": str(order_id),
         "ordered_items": ordered_items,
@@ -661,9 +777,338 @@ def _review_sort_key(record: dict[str, Any]) -> str:
     return str(record.get("review_time") or "") + "|" + str(record.get("source_file") or "")
 
 
+def _clean_identity_text(value: Any, max_len: int = 220) -> str:
+    text = str(value or "").strip()
+    if text in {"", "-", "None", "none", "null", "NULL", "No data", "no data", "N/A", "n/a"}:
+        return ""
+    text = _to_simplified_chinese_local(text)
+    text = re.sub(r"\s+", " ", text).strip().lower()
+    return text[:max_len]
+
+
+def _review_identity_key(record: dict[str, Any]) -> str:
+    platform = canonical_platform(str(record.get("platform") or "")).lower()
+    if not platform:
+        platform = _clean_identity_text(record.get("platform"), 80)
+    order_id = _clean_identity_text(record.get("order_id") or record.get("order_sn"), 120)
+    if order_id:
+        return f"order|{platform}|{order_id}"
+
+    store = _clean_identity_text(record.get("store") or record.get("store_id"), 160)
+    customer = _clean_identity_text(record.get("customer"), 120)
+    rating = _clean_identity_text(record.get("rating"), 20)
+    if platform == "google_maps" and store and customer:
+        return f"google_user|{platform}|{store}|{customer}|{rating}"
+
+    review_text = _clean_identity_text(record.get("review") or record.get("translated_review"), 260)
+    if review_text:
+        return f"text|{platform}|{store}|{customer}|{rating}|{review_text}"
+
+    review_id = _clean_identity_text(record.get("review_id"), 160)
+    source_file = _clean_identity_text(record.get("source_file"), 240)
+    review_id_base = re.sub(r"[-_]\d{1,6}$", "", review_id)
+    if review_id and source_file and review_id not in source_file and review_id_base not in source_file and len(review_id) >= 10:
+        return f"review_id|{platform}|{review_id}"
+
+    review_time = _clean_identity_text(str(record.get("review_time") or "")[:10], 40)
+    if review_time or customer or store or rating:
+        return f"rating_only|{platform}|{review_time}|{customer}|{rating}|{store}"
+    return f"fallback|{platform}|{source_file}"
+
+
+def _review_fuzzy_base_key(record: dict[str, Any]) -> str:
+    platform = canonical_platform(str(record.get("platform") or "")).lower()
+    if not platform:
+        platform = _clean_identity_text(record.get("platform"), 80)
+    store = _clean_identity_text(record.get("store") or record.get("store_id"), 160)
+    rating = _clean_identity_text(record.get("rating"), 20)
+    review_time = _clean_identity_text(str(record.get("review_time") or "")[:16], 40)
+    return f"{platform}|{store}|{rating}|{review_time}"
+
+
+def _review_text_identity(record: dict[str, Any], max_len: int = 2000) -> str:
+    text = str(record.get("review") or record.get("translated_review") or "")
+    text = re.sub(r"[\ue000-\uf8ff]", " ", text)
+    text = re.sub(r"(?:…|\.\.\.)\s*(?:更多|more|show\s+more).*$", "", text, flags=re.IGNORECASE | re.DOTALL)
+    return _clean_identity_text(text, max_len)
+
+
+def _same_review_text(left: str, right: str) -> bool:
+    if not left or not right:
+        return False
+    if left == right:
+        return True
+    shorter, longer = sorted((left, right), key=len)
+    if len(shorter) < 40:
+        return False
+    if shorter in longer:
+        return True
+    if len(shorter) >= 80 and shorter[:96] == longer[:96]:
+        return True
+    return difflib.SequenceMatcher(None, shorter[:800], longer[:800]).ratio() >= 0.92
+
+
+def _same_review_entity(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    if _review_fuzzy_base_key(left) != _review_fuzzy_base_key(right):
+        return False
+    left_customer = _clean_identity_text(left.get("customer"), 120)
+    right_customer = _clean_identity_text(right.get("customer"), 120)
+    if left_customer and right_customer and left_customer != right_customer:
+        return False
+    left_order = _clean_identity_text(left.get("order_id"), 160)
+    right_order = _clean_identity_text(right.get("order_id"), 160)
+    if left_order and right_order:
+        return left_order == right_order
+    left_text = _review_text_identity(left)
+    right_text = _review_text_identity(right)
+    if left_text or right_text:
+        return _same_review_text(left_text, right_text)
+    return True
+
+
+def _resolve_review_dedupe_key(
+    records_by_key: dict[str, dict[str, Any]],
+    fuzzy_buckets: dict[str, list[str]],
+    record: dict[str, Any],
+) -> str:
+    key = _review_identity_key(record)
+    if key in records_by_key:
+        return key
+    for candidate_key in fuzzy_buckets.get(_review_fuzzy_base_key(record), []):
+        candidate = records_by_key.get(candidate_key)
+        if candidate and _same_review_entity(record, candidate):
+            return candidate_key
+    if not key.startswith("text|"):
+        return key
+    text = _review_text_identity(record)
+    if not text:
+        return key
+    for candidate_key in fuzzy_buckets.get(_review_fuzzy_base_key(record), []):
+        candidate = records_by_key.get(candidate_key)
+        if candidate and _same_review_text(text, _review_text_identity(candidate)):
+            return candidate_key
+    return key
+
+
+def _remember_review_dedupe_key(fuzzy_buckets: dict[str, list[str]], record: dict[str, Any], key: str) -> None:
+    bucket = fuzzy_buckets.setdefault(_review_fuzzy_base_key(record), [])
+    if key not in bucket:
+        bucket.append(key)
+
+
+def _meaningful(value: Any) -> bool:
+    if value in (None, "", [], {}):
+        return False
+    text = str(value).strip()
+    return text not in {"", "-", "None", "none", "null", "NULL", "No data", "no data", "N/A", "n/a"}
+
+
+def _is_noise_order_detail(value: Any) -> bool:
+    text = str(value or "").strip()
+    if not _meaningful(text):
+        return True
+    text = _clean_order_detail_text(text)
+    if not _meaningful(text):
+        return True
+    markers = (
+        "order",
+        "item",
+        "qty",
+        "quantity",
+        "price",
+        "subtotal",
+        "total",
+        "product",
+        "goods",
+        "订单",
+        "商品",
+        "数量",
+        "单价",
+        "价格",
+        "小计",
+        "结算",
+    )
+    lower = text.lower()
+    has_marker = any(marker.lower() in lower for marker in markers)
+    has_money = bool(re.search(r"(?:[$€£¥]|HK\$|MOP|RM|SGD|USD|AUD|CAD)\s*\d", text, flags=re.IGNORECASE))
+    has_quantity = bool(re.search(r"(?:^|\s)(?:x\s*)?\d+\s*(?:份|杯|件|pcs?|items?)\b", text, flags=re.IGNORECASE))
+    return not (has_marker or has_money or has_quantity)
+
+
+def _clean_order_detail_text(value: Any) -> str:
+    lines = []
+    for line in str(value or "").replace("\r", "\n").split("\n"):
+        text = line.strip()
+        if not text:
+            continue
+        lower = text.lower()
+        if re.fullmatch(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", text):
+            continue
+        if ".owner" in lower or "owner a" in lower or "owner b" in lower:
+            continue
+        if re.fullmatch(r"[A-Za-z]:[\\/].+", text) or re.search(r"exports[\\/].+\.jsonl?$", text, flags=re.IGNORECASE):
+            continue
+        lines.append(text)
+    return "\n".join(lines).strip()
+
+
+def _valid_review_text(value: Any) -> str:
+    text = str(value or "").strip()
+    if not _meaningful(text):
+        return ""
+    if re.fullmatch(r"[\d\s:：\-.,，。/]+", text):
+        return ""
+    return text
+
+
+def _clean_customer_display(value: Any) -> str:
+    text = str(value or "").strip()
+    text = re.sub(r"\b[a-fA-F0-9]{16,64}\b", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text
+
+
+def _review_completeness_score(record: dict[str, Any]) -> int:
+    score = 0
+    for field in ("platform", "country", "store", "store_id", "rating", "review", "translated_review", "customer", "review_time", "order_id"):
+        if _meaningful(record.get(field)):
+            score += 4
+    items = record.get("ordered_items")
+    if isinstance(items, list) and items:
+        score += 18 + min(len(items), 8)
+        score += sum(
+            1
+            for item in items
+            if isinstance(item, dict)
+            and _meaningful(
+                item.get("unit_price")
+                or item.get("unitPrice")
+                or item.get("price")
+                or item.get("amount")
+                or item.get("totalPrice")
+                or item.get("productPrice")
+                or item.get("goodsPrice")
+                or item.get("salePrice")
+                or item.get("finalPrice")
+                or item.get("singlePrice")
+                or item.get("subtotal")
+            )
+        )
+    if _meaningful(record.get("order_detail")):
+        score += 18 + min(len(str(record.get("order_detail"))), 300) // 30
+    images = record.get("image_urls")
+    if isinstance(images, list) and images:
+        score += 10 + min(len(images), 6)
+    if isinstance(record.get("raw_json"), dict) and record["raw_json"]:
+        score += min(len(record["raw_json"]), 20)
+    if "exports\\runs" in str(record.get("source_file") or "") or "exports/runs" in str(record.get("source_file") or ""):
+        score += 6
+    return score
+
+
+def _merge_review_records(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    primary, secondary = (
+        (incoming, existing)
+        if _review_completeness_score(incoming) > _review_completeness_score(existing)
+        else (existing, incoming)
+    )
+    merged = dict(primary)
+    for key, value in secondary.items():
+        if not _meaningful(merged.get(key)) and _meaningful(value):
+            merged[key] = value
+            continue
+        if key == "image_urls":
+            urls = []
+            for candidate in (_as_list(merged.get(key)), _as_list(value)):
+                for url in candidate:
+                    if url and url not in urls:
+                        urls.append(url)
+            merged[key] = urls
+        elif key == "ordered_items":
+            current = merged.get(key) if isinstance(merged.get(key), list) else []
+            extra = value if isinstance(value, list) else []
+            def item_score(items: list[Any]) -> int:
+                total = 0
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    text = json.dumps(item, ensure_ascii=False)
+                    has_name = _meaningful(
+                        item.get("product")
+                        or item.get("product_name")
+                        or item.get("productName")
+                        or item.get("goodsName")
+                        or item.get("itemName")
+                        or item.get("name")
+                    )
+                    has_qty = _meaningful(item.get("quantity") or item.get("qty") or item.get("count") or item.get("num"))
+                    has_price = _meaningful(
+                        item.get("unit_price")
+                        or item.get("unitPrice")
+                        or item.get("price")
+                        or item.get("amount")
+                        or item.get("totalPrice")
+                        or item.get("productPrice")
+                        or item.get("goodsPrice")
+                        or item.get("salePrice")
+                        or item.get("finalPrice")
+                        or item.get("singlePrice")
+                        or item.get("subtotal")
+                    )
+                    total += (2 if has_name else 0) + (3 if has_qty else 0) + (5 if has_price else 0)
+                    if re.search(r"(商品|產品|产品|饮品|飲品|goods|product|item|price|单价|單價)", text, flags=re.IGNORECASE):
+                        total += 2
+                return total
+            if item_score(extra) > item_score(current) or (item_score(extra) == item_score(current) and len(extra) > len(current)):
+                merged[key] = extra
+        elif key == "order_detail" and len(str(value or "")) > len(str(merged.get(key) or "")):
+            merged[key] = value
+        elif key == "raw_json" and isinstance(merged.get(key), dict) and isinstance(value, dict):
+            merged[key] = {**value, **merged[key]}
+    merged["has_order"] = bool(merged.get("order_id") or _meaningful(merged.get("order_detail")) or merged.get("ordered_items"))
+    merged["has_image"] = bool(merged.get("image_urls"))
+    return merged
+
+
+def _is_placeholder_review(record: dict[str, Any]) -> bool:
+    review_text = _clean_identity_text(record.get("review") or record.get("translated_review"), 80)
+    if review_text not in {"no data", "暂无", "暂无数据", "empty", "n/a"}:
+        return False
+    return not (
+        _meaningful(record.get("order_id"))
+        or _meaningful(record.get("order_detail"))
+        or bool(record.get("ordered_items"))
+        or bool(record.get("image_urls"))
+    )
+
+
+def _is_non_review_page_text(record: dict[str, Any]) -> bool:
+    text = str(record.get("review") or record.get("translated_review") or "").strip()
+    if not text:
+        return False
+    platform = canonical_platform(str(record.get("platform") or "")).lower()
+    has_core_review_evidence = any(
+        [
+            _meaningful(record.get("rating")),
+            _meaningful(record.get("review_time")),
+            _meaningful(record.get("order_id")),
+        ]
+    )
+    if platform == "dianping" and not (
+        _meaningful(record.get("rating")) or _meaningful(record.get("review_time"))
+    ):
+        return True
+    site_chrome_patterns = (
+        r"商户服务|关于我们|请登录|登录/注册|去\s*APP\s*查看更多内容|查看更多内容|美食",
+        r"中国最贵的将军墓|上千瓶茅台|网红大滑梯|这个商场惊见",
+        r"privacy policy|terms of use|sign in|log in|register|download app",
+    )
+    return (not has_core_review_evidence) and any(re.search(pattern, text, flags=re.IGNORECASE) for pattern in site_chrome_patterns)
+
+
 def _read_real_reviews(limit: int = 200) -> list[dict[str, Any]]:
-    records: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    records_by_key: dict[str, dict[str, Any]] = {}
+    fuzzy_buckets: dict[str, list[str]] = {}
     files = []
     if EXPORT_DIR.exists():
         files.extend(sorted(RUNS_DIR.glob("*/normalized_reviews.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True) if RUNS_DIR.exists() else [])
@@ -680,15 +1125,21 @@ def _read_real_reviews(limit: int = 200) -> list[dict[str, Any]]:
                 record = _normalize_ui_review(raw, payload, path, index)
                 if not any(record.get(field) for field in ("review", "order_id", "order_detail", "ordered_items", "image_urls")):
                     continue
-                key = "|".join(str(record.get(part, "")) for part in ("platform", "store_id", "order_id", "review_time", "review"))
-                if key in seen:
+                if _is_placeholder_review(record):
                     continue
-                seen.add(key)
-                records.append(record)
+                if _is_non_review_page_text(record):
+                    continue
+                key = _resolve_review_dedupe_key(records_by_key, fuzzy_buckets, record)
+                if key in records_by_key:
+                    records_by_key[key] = _merge_review_records(records_by_key[key], record)
+                else:
+                    records_by_key[key] = record
+                    _remember_review_dedupe_key(fuzzy_buckets, record, key)
         except Exception:
             continue
-        if len(records) >= limit * 3:
+        if len(records_by_key) >= limit * 3:
             break
+    records = list(records_by_key.values())
     return sorted(records, key=_review_sort_key, reverse=True)[:limit]
 
 
@@ -781,6 +1232,95 @@ def _save_knowledge_index(entries: list[dict[str, Any]]) -> None:
     KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
     index_path = _knowledge_index_path()
     index_path.write_text(json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _decode_text_bytes(data: bytes) -> str:
+    for encoding in ("utf-8-sig", "utf-8", "gb18030", "big5", "latin-1"):
+        try:
+            return data.decode(encoding)
+        except Exception:
+            continue
+    return data.decode("utf-8", errors="replace")
+
+
+def _extract_knowledge_file_text(filename: str, data: bytes) -> str:
+    suffix = Path(filename or "").suffix.lower()
+    if suffix in {".txt", ".md", ".json", ".csv", ".log"}:
+        return _decode_text_bytes(data)
+    if suffix in {".xlsx", ".xlsm"}:
+        try:
+            from io import BytesIO
+            from openpyxl import load_workbook  # type: ignore
+
+            workbook = load_workbook(BytesIO(data), read_only=True, data_only=True)
+            rows: list[str] = []
+            for sheet in workbook.worksheets[:8]:
+                rows.append(f"# Sheet: {sheet.title}")
+                for row in sheet.iter_rows(values_only=True):
+                    values = [str(value).strip() for value in row if value not in (None, "")]
+                    if values:
+                        rows.append(" | ".join(values))
+                    if len(rows) >= 4000:
+                        break
+            return "\n".join(rows)
+        except Exception as exc:
+            return f"[xlsx_parse_failed: {exc}]\n" + _decode_text_bytes(data[:200000])
+    if suffix == ".docx":
+        try:
+            from io import BytesIO
+            import docx  # type: ignore
+
+            document = docx.Document(BytesIO(data))
+            return "\n".join(paragraph.text for paragraph in document.paragraphs if paragraph.text.strip())
+        except Exception as exc:
+            return f"[docx_parse_failed: {exc}]\n" + _decode_text_bytes(data[:200000])
+    if suffix == ".pdf":
+        try:
+            from io import BytesIO
+            try:
+                from pypdf import PdfReader  # type: ignore
+            except Exception:
+                from PyPDF2 import PdfReader  # type: ignore
+
+            reader = PdfReader(BytesIO(data))
+            pages = []
+            for page in reader.pages[:60]:
+                pages.append(page.extract_text() or "")
+            return "\n".join(text for text in pages if text.strip())
+        except Exception as exc:
+            return f"[pdf_parse_failed: {exc}]\n" + _decode_text_bytes(data[:200000])
+    return _decode_text_bytes(data)
+
+
+def _persist_knowledge_entry(name: str, content: str, source_type: str, tags: list[Any] | None = None) -> dict[str, Any]:
+    clean_name = str(name or "").strip() or "knowledge_note"
+    clean_content = str(content or "").strip()
+    if not clean_content:
+        raise ValueError("content is required")
+    safe_name = re.sub(r"[^0-9A-Za-z_\-\u4e00-\u9fff]+", "_", clean_name).strip("_") or "knowledge_note"
+    entry_id = uuid4().hex[:12]
+    file_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{entry_id}_{safe_name}.md"
+    file_path = KNOWLEDGE_DIR / file_name
+    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
+    file_path.write_text(clean_content, encoding="utf-8")
+
+    snippet = clean_content.replace("\r", " ").replace("\n", " ")[:320]
+    now_iso = datetime.now().isoformat(timespec="seconds")
+    entry = {
+        "id": entry_id,
+        "name": clean_name,
+        "file": str(file_path.relative_to(ROOT)).replace("\\", "/"),
+        "snippet": snippet,
+        "tags": [str(item) for item in (tags or []) if str(item).strip()],
+        "source_type": source_type,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    entries = [item for item in _load_knowledge_index() if str(item.get("id") or "") != entry_id]
+    entries.append(entry)
+    _save_knowledge_index(entries)
+    EVENT_BUS.publish("success", "Knowledge base updated", f"Added knowledge entry: {clean_name}", {"entry_id": entry_id})
+    return entry
 
 
 def _knowledge_prompt_context(limit: int = 6, max_chars: int = 6000) -> str:
@@ -909,24 +1449,78 @@ async def _build_ai_remediation(platform: str, region: str, diagnosis: dict[str,
     raise ValueError("ai_response_not_object")
 
 
+_KEYWORD_NOISE_WORDS = {
+    "the", "and", "for", "with", "that", "this", "was", "were", "have", "has", "from", "very", "just", "but", "you",
+    "your", "our", "their", "they", "been", "delivery", "drink", "review", "comment", "order", "service", "food",
+    "local", "guide", "reviews", "photos", "photo", "ago", "new", "star", "stars", "rating", "rated", "minutes",
+    "minute", "hours", "hour", "days", "day", "item", "items", "qty", "quantity", "price", "subtotal", "total",
+    "评论", "評論", "則評論", "则评论", "配送", "门店", "客服", "这个", "那个", "我们", "你们", "他们", "因为", "但是", "没有",
+    "分钟", "分鐘", "分钟前", "分鐘前", "小时", "小時", "小时前", "小時前", "天前", "新", "照片", "评分", "星", "颗星", "顆星",
+    "订单", "订单号", "訂單", "商品", "规格", "規格", "数量", "數量", "单价", "單價", "价格", "價格", "小计", "小計",
+    "标准", "標準", "甜度", "茶底", "调整", "調整", "状态", "狀態", "推荐", "推薦", "冰沙", "少少少甜", "去茶底",
+    "条评价", "條評價", "則評價", "则评价", "在地嚮導", "本地向导", "張相片", "张照片", "週前", "周前",
+    "您好", "我们深表歉意", "我们深感抱歉", "感謝您", "谢谢您", "app", "heytea", "tea", "there", "added",
+    "making", "drinking", "even", "though", "requested", "bubble", "straw", "impossible", "pretty", "good",
+    "hey", "sam", "chen", "nguyen", "此致", "好的", "然而", "而且", "个字", "好吧",
+}
+
+_BUSINESS_KEYWORD_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("缺少吸管/餐具", ("straw", "吸管", "餐具", "accessories", "utensil")),
+    ("漏单少件", ("少给", "少了", "漏", "missing", "missed", "只给", "只給", "少杯", "少一杯", "少两杯", "少兩杯")),
+    ("杯型/规格不符", ("大杯", "小杯", "杯子大小", "大小不一致", "wrong size", "size", "规格不符", "規格不符")),
+    ("等待过久", ("等了", "等待", "太慢", "慢", "delay", "late", "wait", "超时", "超時")),
+    ("包装问题", ("包装", "包裝", "漏洒", "漏灑", "spill", "spilled", "seal", "袋子", "破损", "破損")),
+    ("口味正向", ("好喝", "味道很好", "味道很棒", "太棒了", "好茶", "tasty", "delicious", "love", "nice")),
+    ("口味/甜度问题", ("太甜", "不甜", "没味", "沒有味", "no taste", "sweet", "bitter", "underwhelming", "不好喝")),
+    ("服务态度问题", ("服务", "服務", "态度", "態度", "rude", "staff", "employee", "客服")),
+    ("价格/性价比", ("贵", "貴", "pricey", "expensive", "worth", "性价比", "性價比")),
+    ("食品安全风险", ("异物", "異物", "发霉", "發霉", "变质", "變質", "hair", "mold", "spoiled", "bug", "吐口水")),
+    ("个性化需求/备注", ("生日", "蜡烛", "蠟燭", "candle", "birthday", "备注", "備註", "request")),
+    ("商品热度/复购", ("每次都点", "每次都點", "必点", "必點", "go to", "go-to", "favorite", "favourite", "常点", "常點")),
+)
+
+
+def _clean_keyword_review_text(review: dict[str, Any]) -> str:
+    for raw in (review.get("review"), review.get("translated_review")):
+        text = str(raw or "").strip()
+        if not text or text in {"-", "None", "none", "null", "No data", "暂无", "暂无数据"}:
+            continue
+        text = re.sub(r"[\ue000-\uf8ff]", " ", text)
+        text = re.sub(r"\b\d+\s*(?:reviews?|photos?|stars?|minutes?|hours?|days?)\b", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"\d+\s*(?:则评论|則評論|张照片|張照片|分钟前|分鐘前|小时前|小時前|天前)", " ", text)
+        text = re.sub(r"\b(?:local guide|new|ago)\b", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"(?:订单号|訂單號|order\s*(?:id|no\.?|number|#))\s*[:：#]?\s*[A-Z]{0,6}\d{6,}", " ", text, flags=re.IGNORECASE)
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) >= 2 and not re.fullmatch(r"[\d\s:：/\-.,，。]+", text):
+            return text
+    return ""
+
+
 def _extract_keywords(reviews: list[dict[str, Any]], top_n: int = 15) -> list[dict[str, Any]]:
-    stop_words = {
-        "the", "and", "for", "with", "that", "this", "was", "were", "have", "has", "from", "very", "just", "but", "you",
-        "your", "our", "their", "they", "been", "delivery", "drink", "review", "comment", "order", "service",
-        "评论", "配送", "门店", "客服", "这个", "那个", "我们", "你们", "他们", "因为", "但是", "没有",
-    }
+    business_counts: dict[str, int] = {}
     counts: dict[str, int] = {}
     for review in reviews:
-        text = f"{review.get('review', '')} {review.get('translated_review', '')}".lower()
+        text = _clean_keyword_review_text(review).lower()
+        if not text:
+            continue
+        for label, needles in _BUSINESS_KEYWORD_RULES:
+            if any(needle.lower() in text for needle in needles):
+                business_counts[label] = business_counts.get(label, 0) + 1
         en_tokens = re.findall(r"[a-z][a-z'-]{2,}", text)
         zh_tokens = re.findall(r"[\u4e00-\u9fff]{2,}", text)
         for token in en_tokens + zh_tokens:
             token = token.strip()
-            if not token or token in stop_words:
+            if (
+                not token
+                or token in _KEYWORD_NOISE_WORDS
+                or token.isdigit()
+                or re.fullmatch(r"\d+[a-z]*", token, flags=re.IGNORECASE)
+                or re.search(r"(分钟|分鐘|小时|小時|天前|週前|周前|评论|評論|評價|评价|照片|相片|向导|嚮導|订单|訂單|规格|規格|数量|數量|价格|價格|歉意|抱歉)", token)
+            ):
                 continue
             counts[token] = counts.get(token, 0) + 1
-    top = sorted(counts.items(), key=lambda item: item[1], reverse=True)[: max(1, top_n)]
-    return [{"keyword": word, "count": count} for word, count in top]
+    business_top = sorted(business_counts.items(), key=lambda item: item[1], reverse=True)
+    return [{"keyword": word, "count": count} for word, count in business_top[: max(1, top_n)]]
 
 
 def _cluster_reviews(reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -948,16 +1542,61 @@ def _cluster_reviews(reviews: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return out
 
 
-def _daily_volume_series(reviews: list[dict[str, Any]], days: int) -> list[dict[str, Any]]:
+def _parse_review_date_text(value: str) -> date | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    for token in (text[:10], text.replace("/", "-")[:10]):
+        try:
+            return datetime.fromisoformat(token).date()
+        except Exception:
+            continue
+    return None
+
+
+def _resolve_time_range_bounds(time_range: Any, fallback_days: int = 7) -> tuple[date, date, int]:
+    safe_days = int(getattr(time_range, "days", 0) or fallback_days or 7)
+    safe_days = max(1, min(safe_days, 30))
+    today = datetime.now().date()
+    start = (
+        date.fromisoformat(str(getattr(time_range, "start_date", "")).strip())
+        if getattr(time_range, "start_date", "")
+        else (today - timedelta(days=safe_days - 1))
+    )
+    end = (
+        date.fromisoformat(str(getattr(time_range, "end_date", "")).strip())
+        if getattr(time_range, "end_date", "")
+        else today
+    )
+    if end < start:
+        start, end = end, start
+    span = max(1, (end - start).days + 1)
+    return start, end, span
+
+
+def _daily_volume_series(
+    reviews: list[dict[str, Any]],
+    days: int,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> list[dict[str, Any]]:
     counts: dict[str, int] = {}
     for review in reviews:
         key = str(review.get("review_time") or "")[:10].replace("/", "-")
         if re.match(r"^\d{4}-\d{2}-\d{2}$", key):
             counts[key] = counts.get(key, 0) + 1
-    today = datetime.now().date()
+    if start_date and end_date:
+        start = min(start_date, end_date)
+        end = max(start_date, end_date)
+        span = max(1, (end - start).days + 1)
+    else:
+        today = datetime.now().date()
+        span = max(1, days)
+        end = today
+        start = today - timedelta(days=span - 1)
     result = []
-    for offset in range(max(1, days) - 1, -1, -1):
-        day = (today - timedelta(days=offset)).isoformat()
+    for offset in range(span):
+        day = (start + timedelta(days=offset)).isoformat()
         result.append({"date": day, "count": counts.get(day, 0)})
     return result
 
@@ -1127,9 +1766,10 @@ def api_unified_status() -> dict:
 def api_unified_stores(country: str = "", platform: str = "", limit: int = 300) -> dict:
     registry = _load_safe_registry()
     canonical = canonical_platform(platform) if platform else ""
+    country_filter = _normalize_region_name(str(country or ""))
     stores = []
     for store in registry["stores"]:
-        if country and country not in str(store.get("country", "")):
+        if country_filter and country_filter not in _normalize_region_name(str(store.get("country", ""))):
             continue
         if canonical and canonical not in {canonical_platform(key) for key in store.get("platforms", {})}:
             continue
@@ -1177,6 +1817,39 @@ def api_unified_runs(limit: int = 50) -> dict:
                     if isinstance(task_info, dict):
                         item["platform"] = task_info.get("platform", "")
                         item["account"] = task_info.get("account", "") or task_info.get("country", "")
+                    errors = []
+                    for cp in checkpoints:
+                        payload = cp.get("payload") if isinstance(cp, dict) else {}
+                        if not isinstance(payload, dict):
+                            continue
+                        for key in ("error", "stderr", "message"):
+                            value = payload.get(key)
+                            if value:
+                                errors.append(str(value))
+                        payload_errors = payload.get("errors")
+                        if isinstance(payload_errors, list):
+                            errors.extend(str(value) for value in payload_errors if str(value).strip())
+                        elif payload_errors:
+                            errors.append(str(payload_errors))
+                        result = payload.get("result")
+                        if isinstance(result, dict):
+                            result_errors = result.get("errors")
+                            if isinstance(result_errors, list):
+                                errors.extend(str(value) for value in result_errors if str(value).strip())
+                            elif result_errors:
+                                errors.append(str(result_errors))
+                            if result.get("error"):
+                                errors.append(str(result.get("error")))
+                    if errors:
+                        deduped_errors = []
+                        seen_errors = set()
+                        for error in errors:
+                            short = re.sub(r"\s+", " ", str(error)).strip()
+                            if not short or short in seen_errors:
+                                continue
+                            seen_errors.add(short)
+                            deduped_errors.append(short[:1200])
+                        item["errors"] = deduped_errors[:8]
                 except Exception:
                     item["last_stage"] = "checkpoint_unreadable"
             if quality_report.exists():
@@ -1188,8 +1861,61 @@ def api_unified_runs(limit: int = 50) -> dict:
                     item["error_count"] = report.get("error_count", 0)
                 except Exception:
                     item["quality_error"] = "quality_report_unreadable"
+            platform_key = canonical_platform(str(item.get("platform") or ""))
+            missing_artifact = str(item.get("last_stage") or "").lower().startswith("finish") and not item.get("has_normalized_reviews")
+            error_count = int(item.get("error_count") or 0)
+            review_count = int(item.get("review_count") or 0)
+            if missing_artifact or error_count > 0:
+                item["health_status"] = "failed" if missing_artifact and review_count <= 0 else "partial"
+                item["retry_suggestions"] = _platform_fallback_steps(platform_key)[:5] if platform_key else []
+            elif str(item.get("last_stage") or "").lower() == "started":
+                item["health_status"] = "running"
+            elif review_count == 0 and item.get("has_quality_report"):
+                item["health_status"] = "empty"
+                item["retry_suggestions"] = [
+                    "Verify the selected date range has merchant reviews.",
+                    "Retry with visible browser mode if the platform may require session refresh.",
+                    "Check whether the platform account is scoped to the expected stores.",
+                ]
+            else:
+                item["health_status"] = "ok"
             runs.append(item)
     return {"ok": True, "count": len(runs), "runs": runs}
+
+
+@nicegui_app.get("/api/unified/failures")
+def api_unified_failures(limit: int = 50) -> dict:
+    runs = list(api_unified_runs(limit=max(50, min(int(limit or 50) * 2, 200))).get("runs") or [])
+    failures = []
+    for run in runs:
+        status = str(run.get("health_status") or "").lower()
+        errors = run.get("errors") if isinstance(run.get("errors"), list) else []
+        if status not in {"failed", "partial", "empty"} and not errors:
+            continue
+        platform = canonical_platform(str(run.get("platform") or ""))
+        failures.append(
+            {
+                "run_id": run.get("run_id", ""),
+                "platform": platform,
+                "platform_label": run.get("platform", ""),
+                "account": run.get("account", ""),
+                "updated_at": run.get("updated_at", ""),
+                "status": status or "failed",
+                "review_count": run.get("review_count", 0),
+                "error_count": run.get("error_count", len(errors)),
+                "errors": errors[:5],
+                "retry_suggestions": (run.get("retry_suggestions") or _platform_fallback_steps(platform))[:6],
+                "run_dir": run.get("run_dir", ""),
+            }
+        )
+        if len(failures) >= max(1, min(int(limit or 50), 100)):
+            break
+    events = [
+        event
+        for event in EVENT_BUS.list_since(max(0, EVENT_BUS.latest_id() - 120))
+        if str(event.get("level") or "").lower() == "error"
+    ][-20:]
+    return {"ok": True, "count": len(failures), "failures": failures, "error_events": events}
 
 
 @nicegui_app.post("/api/unified/platform-diagnose")
@@ -1267,28 +1993,30 @@ def api_unified_reviews(
     platform: str = "",
     country: str = "",
     store: str = "",
-    days: int = 30,
+    days: int | None = 30,
+    start_date: str = "",
+    end_date: str = "",
     has_image: bool = False,
     has_order: bool = False,
     limit: int = 200,
 ) -> dict:
     try:
-        time_range = validate_week_range(days=days)
+        if str(start_date or "").strip() and str(end_date or "").strip():
+            time_range = validate_week_range(start_date=str(start_date).strip(), end_date=str(end_date).strip())
+        else:
+            safe_days = int(days) if days is not None else 30
+            time_range = validate_week_range(days=safe_days)
     except ValueError as exc:
         return {"ok": False, "error": str(exc), "reviews": []}
-    start_date = (
-        datetime.fromisoformat(time_range.start_date).date()
-        if time_range.start_date
-        else (datetime.now().date() - timedelta(days=max(1, int(time_range.days or days)) - 1))
-    )
+    start_bound, end_bound, _span = _resolve_time_range_bounds(time_range, fallback_days=int(days or 30))
     platform_query = platform.lower().strip()
-    country_query = country.lower().strip()
+    country_query = _normalize_region_name(country).lower().strip()
     store_query = store.lower().strip()
     filtered = []
     for record in _read_real_reviews(limit=max(limit, 300)):
         if platform_query and platform_query not in str(record.get("platform", "")).lower():
             continue
-        if country_query and country_query not in str(record.get("country", "")).lower():
+        if country_query and country_query not in _normalize_region_name(str(record.get("country", ""))).lower():
             continue
         if store_query and store_query not in str(record.get("store", "")).lower():
             continue
@@ -1297,14 +2025,8 @@ def api_unified_reviews(
         if has_order and not record.get("has_order"):
             continue
         review_time = str(record.get("review_time") or "")
-        parsed_date = None
-        for token in (review_time[:10], review_time.replace("/", "-")[:10]):
-            try:
-                parsed_date = datetime.fromisoformat(token).date()
-                break
-            except Exception:
-                pass
-        if parsed_date and parsed_date < start_date:
+        parsed_date = _parse_review_date_text(review_time)
+        if parsed_date and (parsed_date < start_bound or parsed_date > end_bound):
             continue
         filtered.append(record)
         if len(filtered) >= max(1, min(limit, 1000)):
@@ -1319,14 +2041,42 @@ def api_unified_reviews(
 
 
 @nicegui_app.get("/api/unified/insight")
-async def api_unified_insight(days: int = 7, limit: int = 1200, platform: str = "") -> dict:
-    days = 30 if int(days) == 30 else 7
-    payload = api_unified_reviews(platform=platform, days=days, limit=max(300, min(limit, 3000)))
+async def api_unified_insight(
+    days: int | None = 7,
+    limit: int = 1200,
+    platform: str = "",
+    start_date: str = "",
+    end_date: str = "",
+) -> dict:
+    safe_days = 30 if int(days or 7) == 30 else 7
+    payload = api_unified_reviews(
+        platform=platform,
+        days=safe_days,
+        start_date=start_date,
+        end_date=end_date,
+        limit=max(300, min(limit, 3000)),
+    )
     reviews = list(payload.get("reviews") or [])
+    raw_range = payload.get("time_range") or {}
+    range_start, range_end, range_days = _resolve_time_range_bounds(
+        type("Range", (), {
+            "start_date": str(raw_range.get("start_date") or ""),
+            "end_date": str(raw_range.get("end_date") or ""),
+            "days": int(raw_range.get("days") or safe_days),
+        })(),
+        fallback_days=safe_days,
+    )
+    days_for_series = max(1, min(range_days, 30))
     if not reviews:
         return {
             "ok": True,
-            "days": days,
+            "days": days_for_series,
+            "time_range": {
+                "type": str(raw_range.get("type") or "last_days"),
+                "days": days_for_series,
+                "start_date": range_start.isoformat(),
+                "end_date": range_end.isoformat(),
+            },
             "metrics": {"review_count": 0, "risk_count": 0, "risk_index": 0, "platform_count": 0},
             "series": {"daily_volume": [], "platform_volume": [], "keywords": [], "clusters": [], "lifecycle": [], "risk_samples": []},
             "ai": {
@@ -1359,11 +2109,11 @@ async def api_unified_insight(days: int = 7, limit: int = 1200, platform: str = 
         "platform_count": len({canonical_platform(str(item.get("platform") or "")) for item in reviews if item.get("platform")}),
     }
     series = {
-        "daily_volume": _daily_volume_series(reviews, days=days),
+        "daily_volume": _daily_volume_series(reviews, days=days_for_series, start_date=range_start, end_date=range_end),
         "platform_volume": _platform_volume_series(reviews),
         "keywords": keywords,
         "clusters": clusters,
-        "lifecycle": _lifecycle_series(reviews, days=days),
+        "lifecycle": _lifecycle_series(reviews, days=days_for_series),
         "risk_samples": _top_risk_reviews(reviews, limit=20),
     }
     fallback_ai = {
@@ -1389,14 +2139,20 @@ async def api_unified_insight(days: int = 7, limit: int = 1200, platform: str = 
     ai_error = ""
     ai = fallback_ai
     try:
-        ai = await _build_ai_insight_v2(metrics, clusters, keywords, reviews, days)
+        ai = await _build_ai_insight_v2(metrics, clusters, keywords, reviews, days_for_series)
         ai_used = True
     except Exception as exc:
         ai_error = str(exc)
 
     return {
         "ok": True,
-        "days": days,
+        "days": days_for_series,
+        "time_range": {
+            "type": str(raw_range.get("type") or "last_days"),
+            "days": days_for_series,
+            "start_date": range_start.isoformat(),
+            "end_date": range_end.isoformat(),
+        },
         "metrics": metrics,
         "series": series,
         "ai": ai,
@@ -1418,6 +2174,8 @@ def _compute_quality_metrics(reviews: list[dict[str, Any]], history: list[dict[s
     order_rows = 0
     order_with_detail = 0
     seen: set[str] = set()
+    fuzzy_records: dict[str, dict[str, Any]] = {}
+    fuzzy_buckets: dict[str, list[str]] = {}
 
     for review in reviews:
         snapshot = {
@@ -1460,19 +2218,14 @@ def _compute_quality_metrics(reviews: list[dict[str, Any]], history: list[dict[s
             if (detail_text and detail_text != "-") or (items_text and items_text != "-") or (isinstance(items, list) and len(items) > 0):
                 order_with_detail += 1
 
-        dedupe_key = "|".join(
-            [
-                canonical_platform(str(review.get("platform") or "")),
-                str(review.get("store") or "").strip().lower(),
-                str(review.get("order_id") or review.get("order_sn") or "").strip(),
-                str(review.get("review_time") or "").strip(),
-                str(review.get("review") or review.get("translated_review") or "").strip().lower()[:120],
-            ]
-        )
+        dedupe_key = _resolve_review_dedupe_key(fuzzy_records, fuzzy_buckets, review)
         if dedupe_key in seen:
             duplicate_rows += 1
+            fuzzy_records[dedupe_key] = _merge_review_records(fuzzy_records[dedupe_key], review)
         else:
             seen.add(dedupe_key)
+            fuzzy_records[dedupe_key] = review
+            _remember_review_dedupe_key(fuzzy_buckets, review, dedupe_key)
 
     manual_gate_count = 0
     total_errors = 0
@@ -1501,7 +2254,12 @@ def _compute_quality_metrics(reviews: list[dict[str, Any]], history: list[dict[s
     }
 
 
-def _build_local_quality_insight(reviews: list[dict[str, Any]], days: int) -> dict[str, Any]:
+def _build_local_quality_insight(
+    reviews: list[dict[str, Any]],
+    days: int,
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict[str, Any]:
     safe_days = 30 if int(days or 7) == 30 else 7
     risk_reviews = 0
     for review in reviews:
@@ -1522,7 +2280,7 @@ def _build_local_quality_insight(reviews: list[dict[str, Any]], days: int) -> di
         "days": safe_days,
         "metrics": metrics,
         "series": {
-            "daily_volume": _daily_volume_series(reviews, days=safe_days),
+            "daily_volume": _daily_volume_series(reviews, days=safe_days, start_date=start_date, end_date=end_date),
             "platform_volume": _platform_volume_series(reviews),
             "keywords": keywords,
             "clusters": clusters,
@@ -1555,20 +2313,48 @@ def _build_local_quality_insight(reviews: list[dict[str, Any]], days: int) -> di
 
 
 @nicegui_app.get("/api/unified/quality-report")
-async def api_unified_quality_report(days: int = 7, limit: int = 1600, platform: str = "") -> dict:
+async def api_unified_quality_report(
+    days: int | None = 7,
+    limit: int = 1600,
+    platform: str = "",
+    start_date: str = "",
+    end_date: str = "",
+) -> dict:
     safe_days = 30 if int(days or 7) == 30 else 7
     safe_limit = max(300, min(int(limit or 1600), 4000))
     status = api_unified_status()
-    reviews_payload = api_unified_reviews(platform=platform, days=safe_days, limit=safe_limit)
+    reviews_payload = api_unified_reviews(
+        platform=platform,
+        days=safe_days,
+        start_date=start_date,
+        end_date=end_date,
+        limit=safe_limit,
+    )
     knowledge_payload = api_unified_knowledge(limit=30)
     settings_payload = api_unified_settings()
     reviews = list(reviews_payload.get("reviews") or [])
     history = list((status.get("coordinator") or {}).get("history") or [])
-    metrics_quality = _compute_quality_metrics(reviews, history, safe_days)
-    insight_payload = _build_local_quality_insight(reviews, safe_days)
+    raw_range = reviews_payload.get("time_range") or {}
+    range_start, range_end, range_days = _resolve_time_range_bounds(
+        type("Range", (), {
+            "start_date": str(raw_range.get("start_date") or ""),
+            "end_date": str(raw_range.get("end_date") or ""),
+            "days": int(raw_range.get("days") or safe_days),
+        })(),
+        fallback_days=safe_days,
+    )
+    span_days = max(1, min(range_days, 30))
+    metrics_quality = _compute_quality_metrics(reviews, history, span_days)
+    insight_payload = _build_local_quality_insight(reviews, span_days, start_date=range_start, end_date=range_end)
     return {
         "ok": True,
-        "days": safe_days,
+        "days": span_days,
+        "time_range": {
+            "type": str(raw_range.get("type") or "last_days"),
+            "days": span_days,
+            "start_date": range_start.isoformat(),
+            "end_date": range_end.isoformat(),
+        },
         "last_updated": datetime.now().isoformat(timespec="seconds"),
         "platform": canonical_platform(platform) if platform else "",
         "metrics_quality": metrics_quality,
@@ -1696,30 +2482,46 @@ async def api_unified_knowledge_add(request: Request) -> dict:
     if not content:
         return {"ok": False, "error": "content is required"}
 
-    safe_name = re.sub(r"[^0-9A-Za-z_\-\u4e00-\u9fff]+", "_", name).strip("_") or "knowledge_note"
-    entry_id = uuid4().hex[:12]
-    file_name = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{entry_id}_{safe_name}.md"
-    file_path = KNOWLEDGE_DIR / file_name
-    KNOWLEDGE_DIR.mkdir(parents=True, exist_ok=True)
-    file_path.write_text(content, encoding="utf-8")
-
-    snippet = content.replace("\r", " ").replace("\n", " ")[:320]
-    now_iso = datetime.now().isoformat(timespec="seconds")
-    entry = {
-        "id": entry_id,
-        "name": name,
-        "file": str(file_path.relative_to(ROOT)).replace("\\", "/"),
-        "snippet": snippet,
-        "tags": [str(item) for item in tags if str(item).strip()],
-        "source_type": source_type,
-        "created_at": now_iso,
-        "updated_at": now_iso,
-    }
-    entries = [item for item in _load_knowledge_index() if str(item.get("id") or "") != entry_id]
-    entries.append(entry)
-    _save_knowledge_index(entries)
-    EVENT_BUS.publish("success", "Knowledge base updated", f"Added knowledge entry: {name}", {"entry_id": entry_id})
+    try:
+        entry = _persist_knowledge_entry(name, content, source_type, tags)
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+    entries = _load_knowledge_index()
     return {"ok": True, "entry": entry, "entries": sorted(entries, key=lambda item: str(item.get('updated_at') or ''), reverse=True)}
+
+
+@nicegui_app.post("/api/unified/knowledge/upload")
+async def api_unified_knowledge_upload(request: Request) -> dict:
+    body = await request.json()
+    filename = str((body or {}).get("filename") or "uploaded_knowledge").strip() or "uploaded_knowledge"
+    encoded = str((body or {}).get("content_base64") or "")
+    inline_content = str((body or {}).get("content") or "")
+    if encoded:
+        try:
+            data = base64.b64decode(encoded, validate=True)
+        except Exception as exc:
+            return {"ok": False, "error": f"invalid base64: {exc}"}
+    else:
+        data = inline_content.encode("utf-8")
+    if not data:
+        return {"ok": False, "error": "empty file"}
+    if len(data) > 20 * 1024 * 1024:
+        return {"ok": False, "error": "file too large; max 20MB"}
+    content = _extract_knowledge_file_text(filename, data).strip()
+    if not content:
+        return {"ok": False, "error": "no readable text extracted"}
+    try:
+        entry = _persist_knowledge_entry(filename, content[:500000], "file_upload", tags=["upload", Path(filename).suffix.lower().lstrip(".")])
+    except ValueError as exc:
+        return {"ok": False, "error": str(exc)}
+    entries = _load_knowledge_index()
+    return {
+        "ok": True,
+        "entry": entry,
+        "bytes": len(data),
+        "chars": len(content),
+        "entries": sorted(entries, key=lambda item: str(item.get("updated_at") or ""), reverse=True),
+    }
 
 
 @nicegui_app.post("/api/unified/knowledge/delete")
@@ -1780,7 +2582,17 @@ def api_unified_production_check() -> dict:
         "run_count": runs.get("count", 0),
         "monitor_running": (status.get("monitor") or {}).get("running", False),
     }
-    return {"ok": checks["ok"], "settings": settings, "production_check": checks}
+    # Backward-compatible response: keep `production_check`, and expose top-level fields
+    # so frontend and external probes can consume a flat schema directly.
+    return {
+        "ok": checks.get("ok", False),
+        "checks": checks.get("checks", []),
+        "model_distribution": checks.get("model_distribution", {}),
+        "risk_counts": checks.get("risk_counts", {}),
+        "backend": checks.get("backend", {}),
+        "settings": settings,
+        "production_check": checks,
+    }
 
 
 @nicegui_app.post("/api/unified/model-smoke")

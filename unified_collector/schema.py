@@ -29,6 +29,10 @@ DEFAULT_FIELDS: tuple[str, ...] = (
     "source",
     "raw_json",
     "quality_flags",
+    "review_id",
+    "review_type",
+    "reply_status",
+    "review_quality",
 )
 
 

@@ -95,27 +95,76 @@ def _parse_summary(stdout: str) -> dict[str, Any]:
     return summary
 
 
-def _run_python(args: list[str], task: CollectionTask, timeout: int | None = None) -> ExecutorResult:
+def _redact_command(command: list[str]) -> list[str]:
+    redacted: list[str] = []
+    sensitive_next = False
+    sensitive_flags = {
+        "--password",
+        "--username",
+        "--api-key",
+        "--token",
+        "--access-token",
+        "--secret",
+    }
+    for part in command:
+        text = str(part)
+        lowered = text.lower()
+        if sensitive_next:
+            redacted.append("[redacted]")
+            sensitive_next = False
+            continue
+        if lowered in sensitive_flags:
+            redacted.append(text)
+            sensitive_next = True
+            continue
+        if any(lowered.startswith(f"{flag}=") for flag in sensitive_flags):
+            redacted.append(f"{text.split('=', 1)[0]}=[redacted]")
+            continue
+        redacted.append(text)
+    return redacted
+
+
+def _run_python(
+    args: list[str],
+    task: CollectionTask,
+    timeout: int | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> ExecutorResult:
     command = [sys.executable, *args]
     if task.options.get("dry_run"):
         return ExecutorResult(
             ok=True,
             platform=task.platform,
             account=task.account or task.country,
-            metrics={"dry_run": True, "command": command},
+            metrics={"dry_run": True, "command": _redact_command(command)},
         )
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
-    process = subprocess.run(
-        command,
-        cwd=ROOT,
-        env=env,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        timeout=timeout or int(task.options.get("timeout", 3600)),
-    )
+    if extra_env:
+        env.update({str(key): str(value) for key, value in extra_env.items() if str(value)})
+    timeout_seconds = int(timeout or task.options.get("timeout", 900))
+    try:
+        process = subprocess.run(
+            command,
+            cwd=ROOT,
+            env=env,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            capture_output=True,
+            timeout=timeout_seconds,
+        )
+    except subprocess.TimeoutExpired as exc:
+        stdout = exc.stdout if isinstance(exc.stdout, str) else (exc.stdout or b"").decode("utf-8", errors="replace")
+        stderr = exc.stderr if isinstance(exc.stderr, str) else (exc.stderr or b"").decode("utf-8", errors="replace")
+        return ExecutorResult(
+            ok=False,
+            platform=task.platform,
+            account=task.account or task.country,
+            errors=(f"collector timeout after {timeout_seconds}s", stderr.strip() or stdout.strip()),
+            metrics={"timeout_seconds": timeout_seconds, "command": _redact_command(command)},
+            stdout_tail=_tail([line for line in stdout.splitlines() if line.strip()]),
+        )
     stdout_lines = [line for line in process.stdout.splitlines() if line.strip()]
     summary = _parse_summary(process.stdout)
     errors: list[str] = []
@@ -169,9 +218,16 @@ def run_grabfood(task: CollectionTask) -> ExecutorResult:
         args.extend(["--limit-stores", str(task.options["limit_stores"])])
     if task.options.get("store_name"):
         args.extend(["--store-name", str(task.options["store_name"])])
+    credential_env = {}
     if account_record and account_record.username and account_record.password:
-        args.extend(["--username", account_record.username, "--password", account_record.password])
-    result = _run_python(args, task)
+        env_prefix = f"GRABFOOD_{account.upper()}"
+        credential_env = {
+            "GRABFOOD_USERNAME": account_record.username,
+            "GRABFOOD_PASSWORD": account_record.password,
+            f"{env_prefix}_USERNAME": account_record.username,
+            f"{env_prefix}_PASSWORD": account_record.password,
+        }
+    result = _run_python(args, task, extra_env=credential_env)
     metrics = {
         **result.metrics,
         "account_ref": account_record.account_ref if account_record else "",
@@ -212,9 +268,16 @@ def run_hungry_panda(task: CollectionTask) -> ExecutorResult:
         args.extend(["--start-index", str(task.options["start_index"])])
     if task.options.get("limit"):
         args.extend(["--limit", str(task.options["limit"])])
+    credential_env = {}
     if account_record and account_record.username and account_record.password:
-        args.extend(["--username", account_record.username, "--password", account_record.password])
-    result = _run_python(args, task)
+        env_prefix = f"HUNGRY_PANDA_{region.upper()}"
+        credential_env = {
+            "HUNGRY_PANDA_USERNAME": account_record.username,
+            "HUNGRY_PANDA_PASSWORD": account_record.password,
+            f"{env_prefix}_USERNAME": account_record.username,
+            f"{env_prefix}_PASSWORD": account_record.password,
+        }
+    result = _run_python(args, task, extra_env=credential_env)
     metrics = {
         **result.metrics,
         "account_ref": account_record.account_ref if account_record else implied_account_ref,
@@ -279,7 +342,7 @@ def run_google_maps(task: CollectionTask) -> ExecutorResult:
         args.extend(["--limit-stores", str(task.options["limit_stores"])])
     if task.options.get("max_scrolls"):
         args.extend(["--max-scrolls", str(task.options["max_scrolls"])])
-    result = _run_python(args, task, timeout=int(task.options.get("timeout", 7200)))
+    result = _run_python(args, task, timeout=int(task.options.get("timeout", 900)))
     metrics = {**result.metrics, **_store_metrics(task, "google_maps", require_url=True)}
     return ExecutorResult(**{**result.to_dict(), "platform": "google_maps", "account": task.country, "metrics": metrics})
 
@@ -371,7 +434,7 @@ def run_dianping(task: CollectionTask) -> ExecutorResult:
     registry = _registry_path(task)
     if Path(registry).exists():
         args.extend(["--registry", registry])
-    result = _run_python(args, task, timeout=int(task.options.get("timeout", 7200)))
+    result = _run_python(args, task, timeout=int(task.options.get("timeout", 900)))
     metrics = {**result.metrics, **_store_metrics(task, "dianping", require_url=True)}
     return ExecutorResult(**{**result.to_dict(), "platform": "dianping", "account": task.country, "metrics": metrics})
 
@@ -414,12 +477,16 @@ def run_uber_eats(task: CollectionTask) -> ExecutorResult:
         args.extend(["--max-stores", str(task.options["max_stores"])])
     if task.options.get("manual_login"):
         args.append("--manual-login")
+    credential_env = {}
     if account_record and account_record.username and account_record.password:
-        args.extend(["--username", account_record.username, "--password", account_record.password])
+        credential_env = {
+            "UBER_EATS_USERNAME": account_record.username,
+            "UBER_EATS_PASSWORD": account_record.password,
+        }
     registry = _registry_path(task)
     if Path(registry).exists():
         args.extend(["--registry", registry])
-    result = _run_python(args, task, timeout=int(task.options.get("timeout", 7200)))
+    result = _run_python(args, task, timeout=int(task.options.get("timeout", 900)), extra_env=credential_env)
     metrics = {
         **result.metrics,
         **_store_metrics(task, "uber_eats", require_url=True),
@@ -461,15 +528,22 @@ def run_mfood(task: CollectionTask) -> ExecutorResult:
         args.append("--manual-login")
     if task.options.get("max_pages"):
         args.extend(["--max-pages", str(task.options["max_pages"])])
+    credential_env = {}
     if account_record and account_record.username and account_record.password:
-        args.extend(["--username", account_record.username, "--password", account_record.password])
+        env_prefix = f"MFOOD_{account_key.upper()}"
+        credential_env = {
+            "MFOOD_USERNAME": account_record.username,
+            "MFOOD_PASSWORD": account_record.password,
+            f"{env_prefix}_USERNAME": account_record.username,
+            f"{env_prefix}_PASSWORD": account_record.password,
+        }
     if account_record and account_record.portal_url and not task.options.get("portal_url"):
         args.extend(["--portal-url", account_record.portal_url])
     if task.options.get("portal_url"):
         args.extend(["--portal-url", str(task.options["portal_url"])])
     if task.options.get("login_url"):
         args.extend(["--login-url", str(task.options["login_url"])])
-    result = _run_python(args, task)
+    result = _run_python(args, task, extra_env=credential_env)
     metrics = {
         **result.metrics,
         "account_ref": account_record.account_ref if account_record else "",
@@ -528,9 +602,13 @@ def run_aomi(task: CollectionTask) -> ExecutorResult:
         args.extend(["--country-label", str(task.options["country_label"])])
     if task.options.get("country_code"):
         args.extend(["--country-code", str(task.options["country_code"])])
+    credential_env = {}
     if account_record and account_record.username and account_record.password:
-        args.extend(["--username", account_record.username, "--password", account_record.password])
-    result = _run_python(args, task)
+        credential_env = {
+            "AOMI_USERNAME": account_record.username,
+            "AOMI_PASSWORD": account_record.password,
+        }
+    result = _run_python(args, task, extra_env=credential_env)
     metrics = {
         **result.metrics,
         "account_ref": account_record.account_ref if account_record else "",

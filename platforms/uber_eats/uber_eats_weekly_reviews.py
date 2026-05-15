@@ -4,6 +4,7 @@ import argparse
 import asyncio
 import csv
 import json
+import os
 import re
 import sys
 from datetime import datetime, timedelta
@@ -57,6 +58,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--browser-channel", default="msedge", help="Playwright browser channel")
     parser.add_argument("--output-prefix", default="uber_eats_weekly_reviews", help="Output prefix")
     return parser.parse_args()
+
+
+def resolve_credentials(args: argparse.Namespace) -> tuple[str, str]:
+    username = args.username or os.getenv("UBER_EATS_USERNAME", "")
+    password = args.password or os.getenv("UBER_EATS_PASSWORD", "")
+    return str(username or ""), str(password or "")
 
 
 def clean_text(value: Any) -> str:
@@ -243,7 +250,8 @@ async def crawl_store(page, store: dict[str, str], args: argparse.Namespace, sin
 
     page_url = (page.url or "").lower()
     if "auth.uber.com" in page_url or "login" in page_url:
-        logged = await attempt_login(page, args.username, args.password)
+        username, password = resolve_credentials(args)
+        logged = await attempt_login(page, username, password)
         if not logged and args.manual_login:
             logged = await wait_manual_login(page)
         if not logged:

@@ -146,7 +146,7 @@ PLATFORM_CAPABILITIES: dict[str, PlatformCapability] = {
         name="Aomi",
         canonical_name="aomi",
         executor="platforms/aomi/aomi_weekly_reviews.py",
-        strategies=("dom", "hybrid"),
+        strategies=("api", "dom", "hybrid"),
         supports_login=True,
         supports_store_registry=True,
         supports_time_filter=True,
@@ -154,7 +154,7 @@ PLATFORM_CAPABILITIES: dict[str, PlatformCapability] = {
         supports_review_images=True,
         supports_translation_source=False,
         human_gate_required=True,
-        notes="Requires merchant portal URL. Uses read-only extraction path only.",
+        notes="API-first read-only review list and review detail capture; blocks reply/save/delete endpoints.",
     ),
     "uber_eats": PlatformCapability(
         name="Uber Eats",

@@ -263,18 +263,79 @@ def get_sentiment_stats() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def get_top_keywords(limit: int = 20) -> list[tuple[str, int]]:
+def get_top_keywords(
+    limit: int = 20,
+    platform: Optional[Platform] = None,
+) -> list[tuple[str, int]]:
+    """获取高频关键词，支持按平台筛选"""
     with _get_conn() as conn:
-        rows = conn.execute("SELECT keywords FROM reviews WHERE keywords IS NOT NULL").fetchall()
+        if platform:
+            rows = conn.execute(
+                "SELECT keywords FROM reviews WHERE keywords IS NOT NULL AND platform = ?",
+                (platform.value,),
+            ).fetchall()
+        else:
+            rows = conn.execute(
+                "SELECT keywords FROM reviews WHERE keywords IS NOT NULL"
+            ).fetchall()
     freq: dict[str, int] = {}
     for row in rows:
         try:
             tags = json.loads(row[0])
             for tag in tags:
-                freq[tag] = freq.get(tag, 0) + 1
+                if tag and len(tag) > 1:
+                    freq[tag] = freq.get(tag, 0) + 1
         except (json.JSONDecodeError, TypeError):
             pass
     return sorted(freq.items(), key=lambda x: x[1], reverse=True)[:limit]
+
+
+def get_sentiment_stats_by_platform(
+    platform: Optional[Platform] = None,
+) -> list[dict]:
+    """获取情感统计，支持按平台筛选（筛选后只返回该平台一条）"""
+    where = "WHERE platform = ?" if platform else ""
+    params = (platform.value,) if platform else ()
+    sql = f"""
+        SELECT platform,
+               SUM(CASE WHEN sentiment='正面' THEN 1 ELSE 0 END) as positive,
+               SUM(CASE WHEN sentiment='负面' THEN 1 ELSE 0 END) as negative,
+               SUM(CASE WHEN sentiment='中性' THEN 1 ELSE 0 END) as neutral,
+               COUNT(*) as total,
+               AVG(rating) as avg_rating
+        FROM reviews
+        {where}
+        GROUP BY platform
+    """
+    with _get_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def get_trend_data(
+    platform: Optional[Platform] = None,
+    days: int = 7,
+) -> list[dict]:
+    """获取近 N 天趋势（可按平台筛选），返回每天各情感计数"""
+    where = "AND platform = ?" if platform else ""
+    params: list = []
+    if platform:
+        params.append(platform.value)
+    sql = f"""
+        SELECT
+            DATE(COALESCE(published_at, crawled_at)) as day,
+            SUM(CASE WHEN sentiment='正面' THEN 1 ELSE 0 END) as positive,
+            SUM(CASE WHEN sentiment='负面' THEN 1 ELSE 0 END) as negative,
+            SUM(CASE WHEN sentiment='中性' THEN 1 ELSE 0 END) as neutral
+        FROM reviews
+        WHERE COALESCE(published_at, crawled_at) >= DATE('now', '-{days} days')
+        {where}
+        GROUP BY day
+        ORDER BY day
+    """
+    with _get_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
 
 
 # ──────────────────────── CrawlTask Repository ────────────────────────
