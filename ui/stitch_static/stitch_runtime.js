@@ -1472,21 +1472,43 @@
   function derivePlatformStates(status, runs) {
     const states = {};
     Object.keys(status.platforms || {}).forEach(key => { states[canonicalUiPlatform(key)] = { state: 'pending', detail: 'No run yet' }; });
+    const grouped = {};
     (runs || []).forEach(run => {
       const key = canonicalUiPlatform(run.platform || '');
       if (!key) return;
-      let state = 'pending';
+      if (!grouped[key]) grouped[key] = { latest: null, successCount: 0, successReviews: 0, failureCount: 0, emptyCount: 0, manualGateCount: 0 };
+      const bucket = grouped[key];
+      if (!bucket.latest) bucket.latest = run;
       const health = String(run.health_status || '').toLowerCase();
-      if (health === 'running' || (run.last_stage || '').toLowerCase().includes('running')) state = 'running';
-      else if (health === 'failed') state = 'failed';
-      else if (health === 'partial') state = 'partial';
-      else if (health === 'empty') state = 'empty';
-      else if (health === 'ok' || Number(run.review_count || 0) > 0) state = 'success';
-      else if (Number(run.error_count || 0) > 0 && Number(run.review_count || 0) > 0) state = 'partial';
-      else if (Number(run.error_count || 0) > 0) state = 'failed';
-      else if ((run.last_stage || '').toLowerCase().includes('finish')) state = 'empty';
-      const detail = run.quality_error || run.last_stage || '';
-      states[key] = { state, detail, run };
+      const reviews = Number(run.review_count || 0);
+      const errors = Number(run.error_count || 0);
+      if (health === 'ok' || reviews > 0) {
+        bucket.successCount += 1;
+        bucket.successReviews += reviews;
+      } else if (health === 'empty') {
+        bucket.emptyCount += 1;
+      } else if (health === 'failed' || health === 'partial' || errors > 0) {
+        bucket.failureCount += 1;
+      }
+      if (run.manual_gate_required) bucket.manualGateCount += 1;
+    });
+    Object.entries(grouped).forEach(([key, bucket]) => {
+      const latest = bucket.latest || {};
+      const latestHealth = String(latest.health_status || '').toLowerCase();
+      const latestReviews = Number(latest.review_count || 0);
+      const latestErrors = Number(latest.error_count || 0);
+      let state = 'pending';
+      if (latestHealth === 'running' || String(latest.last_stage || '').toLowerCase().includes('running')) state = 'running';
+      else if (bucket.successCount > 0 && (bucket.failureCount > 0 || bucket.emptyCount > 0 || bucket.manualGateCount > 0 || latestHealth === 'failed')) state = 'partial';
+      else if (bucket.successCount > 0 || latestHealth === 'ok' || latestReviews > 0) state = 'success';
+      else if (latestHealth === 'empty' || bucket.emptyCount > 0) state = 'empty';
+      else if (latestHealth === 'failed' || latestErrors > 0 || bucket.failureCount > 0) state = 'failed';
+      const parts = [];
+      if (bucket.successReviews > 0) parts.push(`${lang() === 'zh' ? '已采集' : 'collected'} ${bucket.successReviews}`);
+      if (bucket.failureCount > 0) parts.push(`${lang() === 'zh' ? '需处理' : 'needs action'} ${bucket.failureCount}`);
+      if (bucket.manualGateCount > 0) parts.push(`${lang() === 'zh' ? '人工门' : 'manual gates'} ${bucket.manualGateCount}`);
+      if (!parts.length) parts.push(normalizeComplianceText(latest.quality_error || latest.last_stage || latestHealth || 'No run yet'));
+      states[key] = { state, detail: parts.join(' · '), run: latest };
     });
     return states;
   }
@@ -1529,14 +1551,14 @@
         }), insightTimeoutMs)),
       ]);
       const safeReviews30Promise = Promise.race([
-        apiJson(`/api/unified/reviews?days=30&start_date=${encodeURIComponent(defaultDashboardRange(30).start)}&end_date=${encodeURIComponent(defaultDashboardRange(30).end)}&limit=1200`).catch(() => ({ reviews: [] })),
+        apiJson(`/api/unified/reviews?days=30&start_date=${encodeURIComponent(defaultDashboardRange(30).start)}&end_date=${encodeURIComponent(defaultDashboardRange(30).end)}&limit=600&compact=true`).catch(() => ({ reviews: [] })),
         new Promise(resolve => setTimeout(() => resolve({ reviews: [] }), reviews30TimeoutMs)),
       ]);
       const [status, runsPayload, registryPayload, reviewsPayload, reviews30Payload] = await Promise.all([
-        apiJson('/api/unified/status'),
+        apiJson('/api/unified/status?compact=true'),
         apiJson('/api/unified/runs?limit=100'),
         apiJson('/api/unified/stores?limit=1000'),
-        apiJson(`/api/unified/reviews?${rangeQuery}&limit=600`),
+        apiJson(`/api/unified/reviews?${rangeQuery}&limit=400&compact=true`),
         safeReviews30Promise,
       ]);
       if (!isActiveDashboardRender(renderSeq)) return;
