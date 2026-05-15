@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import json
 import os
 import platform
+import re
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -39,6 +40,7 @@ class CountryConfig:
     label: str
     profile_name: str
     display_name: str
+    aliases: tuple[str, ...] = ()
 
     @property
     def profile_dir(self) -> Path:
@@ -46,9 +48,9 @@ class CountryConfig:
 
 
 COUNTRIES = {
-    "ca": CountryConfig("ca", "CA", "加拿大", "fantuan_ca", "Canada"),
-    "us": CountryConfig("us", "US", "美国", "fantuan_us", "United States"),
-    "au": CountryConfig("au", "AU", "澳大利亚", "fantuan_au", "Australia"),
+    "ca": CountryConfig("ca", "CA", "加拿大", "fantuan_ca", "Canada", ("Canada", "加拿大", "加拿大", "CA Canada")),
+    "us": CountryConfig("us", "US", "美国", "fantuan_us", "United States", ("United State", "United States", "美国", "美國")),
+    "au": CountryConfig("au", "AU", "澳大利亚", "fantuan_au", "Australia", ("Australia", "澳大利亚", "澳大利亞")),
 }
 
 FIELDS = [
@@ -103,6 +105,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--username", default="", help="Fantuan username")
     parser.add_argument("--password", default="", help="Fantuan password")
     parser.add_argument("--output-prefix", default="", help="Optional export filename prefix")
+    parser.add_argument("--portal-url", default="", help="Optional direct evaluate page URL, used as a store-route fallback")
     return parser.parse_args()
 
 
@@ -135,6 +138,13 @@ def load_credentials(args: argparse.Namespace, config: CountryConfig) -> tuple[s
     else:
         username = password = ""
     return username, password
+
+
+def route_from_portal_url(portal_url: str) -> str:
+    match = re.search(r"#/([^/?#]+)/(?:evaluate|appraise)/custom", str(portal_url or ""))
+    if not match:
+        return ""
+    return match.group(1).strip()
 
 
 def parse_review_time(value: str) -> datetime | None:
@@ -217,23 +227,29 @@ async def select_login_country(page, config: CountryConfig) -> None:
     selector = page.locator("#configName").locator("xpath=ancestor::div[contains(@class, 'ant-select')][1]").first
     if await selector.count() == 0:
         return
+    labels = tuple(label for label in (config.label, *config.aliases) if label)
     current = ""
     try:
         current = await selector.inner_text(timeout=1000)
     except Exception:
         pass
-    if config.label in current or config.route_suffix in current.upper():
+    if any(label in current for label in labels):
         return
     await selector.click(force=True)
     await page.wait_for_timeout(500)
     option = page.locator(".ant-select-item-option-content", has_text=config.label).first
+    if await option.count() == 0:
+        for label in config.aliases:
+            option = page.locator(".ant-select-item-option-content", has_text=label).first
+            if await option.count() > 0:
+                break
     if await option.count() == 0:
         options = page.locator(".ant-select-item-option-content")
         option_count = await options.count()
         route_hint = config.route_suffix.upper()
         for index in range(option_count):
             text = (await options.nth(index).inner_text()).strip().upper()
-            if route_hint and route_hint in text:
+            if route_hint and route_hint in text and "+" not in text:
                 option = options.nth(index)
                 break
     if await option.count() == 0:
@@ -390,6 +406,20 @@ def build_store_records(config: CountryConfig, session_payload: dict[str, Any], 
 
     if not stores and session_payload.get("restaurantId"):
         append_store(session_payload)
+
+    if not stores:
+        fallback_route = route_from_portal_url(getattr(args, "portal_url", ""))
+        fallback_restaurant_id = args.restaurant_id or (fallback_route.split("-", 1)[0] if fallback_route else "")
+        if fallback_restaurant_id:
+            route = fallback_route or f"{fallback_restaurant_id}-{config.route_suffix}"
+            stores.append(
+                {
+                    "restaurant_id": fallback_restaurant_id,
+                    "restaurant_name": args.store_name or f"Fantuan {config.display_name} {fallback_restaurant_id}",
+                    "route": route,
+                    "area_name": "",
+                }
+            )
 
     if args.limit_stores > 0:
         stores = stores[: args.limit_stores]

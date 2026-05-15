@@ -303,6 +303,14 @@ def run_hungry_panda(task: CollectionTask) -> ExecutorResult:
 
 def run_fantuan(task: CollectionTask) -> ExecutorResult:
     country = task.country or task.account or "ca"
+    account_record = resolve_account(
+        platform="fantuan",
+        account_ref=_maybe_account_ref(task, "fantuan"),
+        account_key=country if ":" not in country else "",
+        country_code=country,
+    )
+    if account_record and account_record.account_key:
+        country = account_record.account_key
     args = [
         "platforms/fantuan/fantuan_weekly_reviews.py",
         "--country",
@@ -321,8 +329,26 @@ def run_fantuan(task: CollectionTask) -> ExecutorResult:
         args.extend(["--restaurant-id", str(task.options["restaurant_id"])])
     if task.options.get("store_name"):
         args.extend(["--store-name", str(task.options["store_name"])])
-    result = _run_python(args, task)
-    return ExecutorResult(**{**result.to_dict(), "platform": "fantuan", "account": country})
+    portal_url = str(task.options.get("portal_url") or (account_record.portal_url if account_record else "")).strip()
+    if portal_url:
+        args.extend(["--portal-url", portal_url])
+    credential_env = {}
+    if account_record and account_record.username and account_record.password:
+        env_prefix = f"FANTUAN_{country.upper()}"
+        credential_env = {
+            "FANTUAN_USERNAME": account_record.username,
+            "FANTUAN_PASSWORD": account_record.password,
+            f"{env_prefix}_USERNAME": account_record.username,
+            f"{env_prefix}_PASSWORD": account_record.password,
+        }
+    result = _run_python(args, task, extra_env=credential_env)
+    metrics = {
+        **result.metrics,
+        "account_ref": account_record.account_ref if account_record else "",
+        "account_key": country,
+        "portal_url": portal_url,
+    }
+    return ExecutorResult(**{**result.to_dict(), "platform": "fantuan", "account": country, "metrics": metrics})
 
 
 def run_google_maps(task: CollectionTask) -> ExecutorResult:
@@ -362,6 +388,12 @@ def run_google_maps(task: CollectionTask) -> ExecutorResult:
 
 
 def run_keeta(task: CollectionTask) -> ExecutorResult:
+    account_record = resolve_account(
+        platform="keeta",
+        account_ref=_maybe_account_ref(task, "keeta"),
+        account_key=task.account if task.account and ":" not in task.account else "",
+        country_code=task.country,
+    )
     args = [
         "platforms/keeta/keeta_weekly_reviews.py",
         "--max-reviews",
@@ -388,8 +420,20 @@ def run_keeta(task: CollectionTask) -> ExecutorResult:
         args.extend(["--max-pages", str(task.options["max_pages"])])
     if task.options.get("no_login"):
         args.append("--no-login")
-    result = _run_python(args, task)
-    return ExecutorResult(**{**result.to_dict(), "platform": "keeta", "account": task.account or "hk"})
+    credential_env = {}
+    if account_record and account_record.username and account_record.password:
+        credential_env = {
+            "KEETA_USERNAME": account_record.username,
+            "KEETA_PASSWORD": account_record.password,
+        }
+    result = _run_python(args, task, extra_env=credential_env)
+    metrics = {
+        **result.metrics,
+        "account_ref": account_record.account_ref if account_record else "",
+        "account_key": account_record.account_key if account_record else (task.account or "hk"),
+        "portal_url": account_record.portal_url if account_record else "",
+    }
+    return ExecutorResult(**{**result.to_dict(), "platform": "keeta", "account": task.account or "hk", "metrics": metrics})
 
 
 def run_openrice(task: CollectionTask) -> ExecutorResult:

@@ -1,7 +1,7 @@
 {
   "platform": "keeta",
   "account": "hk",
-  "country": "香港",
+  "country": "hk",
   "stores": "all",
   "time_range": {
     "type": "last_days",

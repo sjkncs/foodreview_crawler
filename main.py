@@ -743,11 +743,25 @@ def _normalize_ui_review(raw: dict[str, Any], payload: dict[str, Any], source_fi
     quality_flags = _as_list(_first(raw, "quality_flags", "Quality Flags"))
     review_id = _first(raw, "review_id", "id", "Review ID", default=f"{source_file.stem}-{index}")
     review_text = _valid_review_text(review)
+    review_type = str(_first(raw, "review_type", "Review Type", "type"))
+    if not review_text:
+        label_text = _valid_review_text(_label_review_text(raw))
+        if label_text:
+            review_text = label_text
+            review_type = review_type or "tag_only"
+            if "tag_only_review" not in quality_flags:
+                quality_flags.append("tag_only_review")
+        elif _meaningful(rating):
+            review_type = review_type or "rating_only"
+            if "rating_only_review" not in quality_flags:
+                quality_flags.append("rating_only_review")
     translated_text = _to_simplified_chinese_local(str(translated))
     if not _valid_review_text(translated_text):
         translated_text = ""
     if not translated_text and review_text and _is_mostly_chinese(review_text):
         translated_text = _to_simplified_chinese_local(review_text)
+    if not _meaningful(order_total):
+        order_total = _extract_order_total_from_text(order_detail)
     return {
         "review_id": str(review_id),
         "run_id": _first(raw, "run_id", default=payload.get("run_id", "")),
@@ -770,6 +784,7 @@ def _normalize_ui_review(raw: dict[str, Any], payload: dict[str, Any], source_fi
         "source": str(_first(raw, "source", "Source", default="jsonl" if source_file.suffix == ".jsonl" else "json")),
         "source_file": str(source_file.relative_to(ROOT)),
         "quality_flags": [str(flag) for flag in quality_flags],
+        "review_type": review_type,
         "raw_json": raw,
         "has_order": bool(order_id or order_detail or ordered_items),
         "has_image": bool(image_urls),
@@ -962,6 +977,43 @@ def _valid_review_text(value: Any) -> str:
     if re.fullmatch(r"[\d\s:：\-.,，。/]+", text):
         return ""
     return text
+
+
+def _label_review_text(raw: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for key in (
+        "Review Labels",
+        "Shop Labels",
+        "Rating Comment",
+        "Package Rating Comment",
+        "Taste Rating Comment",
+        "Recommended Items",
+    ):
+        text = str(raw.get(key) or "").strip()
+        if text and text not in {"-", "None", "null"}:
+            parts.append(text)
+    unique: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        if part not in seen:
+            unique.append(part)
+            seen.add(part)
+    return "；".join(unique)
+
+
+def _extract_order_total_from_text(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    patterns = (
+        r"(?:顾客支付|客戶支付|客户支付|Customer\s*paid|Customer\s*payment)\s*[:：]?\s*([A-Z$€£¥￥]*\s*\d+(?:[.,]\d{1,2})?)",
+        r"(?:订单总额|訂單總額|合计|合計|Total)\s*[:：]?\s*([A-Z$€£¥￥]*\s*\d+(?:[.,]\d{1,2})?)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return re.sub(r"\s+", "", match.group(1)).strip()
+    return ""
 
 
 def _clean_customer_display(value: Any) -> str:
@@ -1397,6 +1449,43 @@ def _platform_fallback_steps(platform: str) -> list[str]:
     return platform_specific.get(p, []) + common
 
 
+def _looks_like_manual_gate(errors: list[str]) -> bool:
+    joined = "\n".join(str(error) for error in errors)
+    return bool(
+        re.search(
+            r"manual gate|captcha|otp|mfa|two[-\s]?factor|saved account|login|password change|initial-password|permission gate|权限|權限|验证码|驗證碼|人工",
+            joined,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _manual_gate_retry_steps(platform: str) -> list[str]:
+    steps = [
+        "需要一次人工门处理：在可视浏览器完成登录、验证码、OTP 或账号确认后再重跑。",
+        "人工处理只允许登录/进入评价页/打开只读详情，不允许回复、保存、提交、删除或改密码。",
+        "完成后保留同一浏览器 profile，下一次小时同步会复用登录态。",
+        "若账号只显示门店/权限管理而无订单评价菜单，需平台后台给该账号补齐只读评价权限。",
+    ]
+    platform_steps: dict[str, list[str]] = {
+        "grabfood": [
+            "GrabFood 优先确认 Go to Portal 后能看到 Feedback → Ratings and reviews。",
+            "如果出现 saved account、captcha 或 OTP，先在可视浏览器完成一次认证。",
+        ],
+        "mfood": [
+            "Mfood 若出现初始密码修改弹窗，自动化会停止；需人工确认账号策略，不能由脚本改密码。",
+            "Mfood 若只有门店管理/权限管理菜单，说明当前账号缺少订单评价读取权限。",
+        ],
+        "keeta": [
+            "KeeTa 若跳回登录页或出现二次验证，先人工恢复登录态，再执行近7天任务。",
+        ],
+        "uber_eats": [
+            "Uber Eats 商家后台常见二次验证，先人工恢复 Merchant Manager 会话。",
+        ],
+    }
+    return platform_steps.get(canonical_platform(platform), []) + steps
+
+
 def _diagnose_platform_connectivity(platform: str, runs: list[dict[str, Any]]) -> dict[str, Any]:
     filtered = [run for run in runs if canonical_platform(str(run.get("platform") or "")) == canonical_platform(platform)]
     if not filtered:
@@ -1797,6 +1886,11 @@ def api_unified_tasks() -> dict:
 @nicegui_app.get("/api/unified/runs")
 def api_unified_runs(limit: int = 50) -> dict:
     runs = []
+    active_run_ids = {
+        str(active.get("run_id"))
+        for active in (COORDINATOR.snapshot().get("active") or [])
+        if isinstance(active, dict) and active.get("run_id")
+    }
     if RUNS_DIR.exists():
         for path in sorted([item for item in RUNS_DIR.iterdir() if item.is_dir()], key=lambda item: item.stat().st_mtime, reverse=True)[
             : max(1, min(limit, 200))
@@ -1866,12 +1960,26 @@ def api_unified_runs(limit: int = 50) -> dict:
                     item["error_count"] = report.get("error_count", 0)
                 except Exception:
                     item["quality_error"] = "quality_report_unreadable"
+            if str(item.get("last_stage") or "").lower() == "started" and str(item.get("run_id")) not in active_run_ids:
+                stale_errors = item.get("errors") if isinstance(item.get("errors"), list) else []
+                stale_errors = list(stale_errors)
+                stale_message = "Task was interrupted before completion; service restarted or collector process exited before writing final checkpoint."
+                if stale_message not in stale_errors:
+                    stale_errors.append(stale_message)
+                item["errors"] = stale_errors
             platform_key = canonical_platform(str(item.get("platform") or ""))
             missing_artifact = str(item.get("last_stage") or "").lower().startswith("finish") and not item.get("has_normalized_reviews")
-            error_count = int(item.get("error_count") or 0)
+            checkpoint_errors = item.get("errors") if isinstance(item.get("errors"), list) else []
+            error_count = max(int(item.get("error_count") or 0), len(checkpoint_errors))
+            item["error_count"] = error_count
             review_count = int(item.get("review_count") or 0)
-            if missing_artifact or error_count > 0:
-                item["health_status"] = "failed" if missing_artifact and review_count <= 0 else "partial"
+            manual_gate = _looks_like_manual_gate(checkpoint_errors)
+            if manual_gate:
+                item["manual_gate_required"] = True
+                item["health_status"] = "failed" if review_count <= 0 else "partial"
+                item["retry_suggestions"] = _manual_gate_retry_steps(platform_key)[:6]
+            elif missing_artifact or error_count > 0:
+                item["health_status"] = "failed" if review_count <= 0 else "partial"
                 item["retry_suggestions"] = _platform_fallback_steps(platform_key)[:5] if platform_key else []
             elif str(item.get("last_stage") or "").lower() == "started":
                 item["health_status"] = "running"
@@ -1907,8 +2015,9 @@ def api_unified_failures(limit: int = 50) -> dict:
                 "updated_at": run.get("updated_at", ""),
                 "status": status or "failed",
                 "review_count": run.get("review_count", 0),
-                "error_count": run.get("error_count", len(errors)),
+                "error_count": max(int(run.get("error_count") or 0), len(errors)),
                 "errors": errors[:5],
+                "manual_gate_required": bool(run.get("manual_gate_required")),
                 "retry_suggestions": (run.get("retry_suggestions") or _platform_fallback_steps(platform))[:6],
                 "run_dir": run.get("run_dir", ""),
             }
@@ -2192,7 +2301,9 @@ def _compute_quality_metrics(reviews: list[dict[str, Any]], history: list[dict[s
         }
         for field in required_fields:
             value = str(snapshot.get(field) or "").strip()
-            if value and value not in {"-", "None", "none", "null"}:
+            if field == "review" and _has_review_signal_for_quality(review):
+                filled_slots += 1
+            elif value and value not in {"-", "None", "none", "null"}:
                 filled_slots += 1
 
         image_urls = review.get("image_urls")
@@ -2256,7 +2367,17 @@ def _compute_quality_metrics(reviews: list[dict[str, Any]], history: list[dict[s
         "manual_gate_count": int(manual_gate_count),
         "total_errors": int(total_errors),
         "review_count": int(review_count),
+        "tag_only_count": sum(1 for review in reviews if review.get("review_type") == "tag_only"),
+        "rating_only_count": sum(1 for review in reviews if review.get("review_type") == "rating_only"),
     }
+
+
+def _has_review_signal_for_quality(review: dict[str, Any]) -> bool:
+    if _meaningful(review.get("review")) or _meaningful(review.get("translated_review")):
+        return True
+    if review.get("review_type") in {"tag_only", "rating_only"}:
+        return True
+    return _meaningful(review.get("rating"))
 
 
 def _build_local_quality_insight(

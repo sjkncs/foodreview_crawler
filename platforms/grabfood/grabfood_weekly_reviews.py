@@ -313,6 +313,10 @@ async def accept_cookie_banner(page) -> None:
     await click_first_text(page, ("Accept All Cookies", "Allow All"), exact=True, timeout=1_500)
 
 
+def can_wait_for_manual_input() -> bool:
+    return bool(getattr(sys.stdin, "isatty", lambda: False)())
+
+
 async def ensure_logged_in(page, config: AccountConfig, username: str, password: str, manual_login: bool):
     await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60_000)
     await page.wait_for_timeout(2_000)
@@ -426,12 +430,19 @@ async def ensure_logged_in(page, config: AccountConfig, username: str, password:
             pass
 
     if manual_login and await page.get_by_text("Feedback", exact=True).count() == 0:
+        if not can_wait_for_manual_input():
+            raise RuntimeError(
+                "GrabFood manual gate required: portal login, saved account confirmation, captcha, or OTP is blocking "
+                "server-side collection. Complete one visible-browser login session, then rerun the task."
+            )
         print("Manual login required. Complete login in the opened browser, then press Enter here.")
         await asyncio.to_thread(input)
 
     if await page.get_by_text("Feedback", exact=True).count() == 0:
         await page.wait_for_load_state("domcontentloaded", timeout=30_000)
-    if "weblogin.grab.com" in page.url and not manual_login:
+    if await page.get_by_text("Feedback", exact=True).count() == 0 and (
+        "weblogin.grab.com" in page.url or "login" in page.url.lower()
+    ):
         raise RuntimeError("GrabFood login did not complete; saved account, captcha, or OTP may require manual login.")
     return page
 

@@ -109,6 +109,25 @@ def clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
 
 
+def can_wait_for_manual_input() -> bool:
+    return bool(getattr(sys.stdin, "isatty", lambda: False)())
+
+
+def classify_blocker_text(body: str) -> str:
+    text = clean_text(body)
+    if not text:
+        return ""
+    if any(token in text for token in ("初始密碼", "初始密码", "修改密碼", "修改密码")):
+        return "Mfood manual gate required: initial-password change prompt blocks read-only navigation; do not modify password in automation."
+    if any(token in text for token in ("驗證碼", "验证码", "OTP", "captcha", "Captcha")):
+        return "Mfood manual gate required: captcha/OTP verification blocks server-side collection."
+    if any(token in text for token in ("門店管理", "门店管理", "權限管理", "权限管理")) and not any(
+        token in text for token in ("訂單管理", "订单管理", "評價管理", "评价管理", "外賣評價", "外卖评价")
+    ):
+        return "Mfood account permission gate: order/evaluation menu is not visible for this account after login."
+    return ""
+
+
 def parse_review_time(value: str) -> datetime | None:
     raw = clean_text(value)
     for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
@@ -158,6 +177,75 @@ async def _optional_click(page, texts: tuple[str, ...], timeout: int = 1200) -> 
     return False
 
 
+async def close_startup_dialogs(page) -> None:
+    async def click_visible_in_dialog(texts: tuple[str, ...]) -> bool:
+        clicked = await page.evaluate(
+            """targets => {
+                const isVisible = el => {
+                    const rect = el.getBoundingClientRect();
+                    const style = window.getComputedStyle(el);
+                    return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                };
+                for (const button of Array.from(document.querySelectorAll('.el-dialog button'))) {
+                    const text = (button.innerText || '').replace(/\\s+/g, ' ').trim();
+                    if (isVisible(button) && targets.includes(text)) {
+                        button.click();
+                        return true;
+                    }
+                }
+                return false;
+            }""",
+            list(texts),
+        )
+        if clicked:
+            await page.wait_for_timeout(800)
+            return True
+        return False
+
+    for _ in range(3):
+        body = ""
+        try:
+            body = await page.locator("body").inner_text(timeout=1500)
+        except Exception:
+            body = ""
+        if any(token in body for token in ("初始密碼", "初始密码", "修改密碼", "修改密码")):
+            if await click_visible_in_dialog(("取消", "稍後", "稍后", "Cancel")):
+                continue
+            try:
+                button = page.locator(".el-dialog:visible .el-dialog__headerbtn").first
+                if await button.count() > 0 and await button.is_visible(timeout=500):
+                    await button.click(force=True)
+                    await page.wait_for_timeout(800)
+                    continue
+            except Exception:
+                pass
+        if "選擇店鋪" in body or "选择店铺" in body:
+            try:
+                clicked_store = await page.evaluate(
+                    """() => {
+                        const isVisible = el => {
+                            const rect = el.getBoundingClientRect();
+                            const style = window.getComputedStyle(el);
+                            return rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' && style.display !== 'none';
+                        };
+                        for (const el of Array.from(document.querySelectorAll('.el-dialog *'))) {
+                            const text = (el.innerText || '').replace(/\\s+/g, ' ').trim();
+                            if (isVisible(el) && text.includes('喜茶')) {
+                                el.click();
+                                return true;
+                            }
+                        }
+                        return false;
+                    }"""
+                )
+                if clicked_store:
+                    await page.wait_for_timeout(1500)
+                    return
+            except Exception:
+                pass
+        break
+
+
 async def ensure_logged_in(page, username: str, password: str, manual_login: bool, portal_url: str, login_url: str) -> None:
     await page.goto(portal_url, wait_until="domcontentloaded", timeout=45_000)
     await page.wait_for_timeout(2_000)
@@ -170,9 +258,11 @@ async def ensure_logged_in(page, username: str, password: str, manual_login: boo
 
     if not username or not password:
         if manual_login:
-            print("[login] waiting for manual login...")
-            await page.wait_for_timeout(60_000)
-            return
+            if can_wait_for_manual_input():
+                print("[login] waiting for manual login...")
+                await asyncio.to_thread(input)
+                return
+            raise RuntimeError("Mfood manual gate required: credentials are missing in non-interactive server mode.")
         raise RuntimeError(f"Mfood credentials missing; provide args/env/or {CREDENTIALS_FILE}")
 
     username_candidates = (
@@ -218,7 +308,15 @@ async def ensure_logged_in(page, username: str, password: str, manual_login: boo
     if not password_filled:
         raise RuntimeError("Mfood login password input not found.")
 
-    submitted = await _optional_click(page, ("登录", "登入", "Sign in", "Login"), timeout=1_200)
+    submitted = await _optional_click(page, ("登录", "登錄", "登 录", "登 錄", "登\xa0錄", "登入", "Sign in", "Login"), timeout=1_200)
+    if not submitted:
+        try:
+            primary = page.locator("button.el-button--primary").first
+            if await primary.count() > 0 and await primary.is_visible(timeout=1_000):
+                await primary.click(force=True)
+                submitted = True
+        except Exception:
+            submitted = False
     if not submitted:
         try:
             await page.keyboard.press("Enter")
@@ -226,17 +324,30 @@ async def ensure_logged_in(page, username: str, password: str, manual_login: boo
             pass
 
     await page.wait_for_timeout(5_000)
+    try:
+        body = await page.locator("body").inner_text(timeout=2000)
+    except Exception:
+        body = ""
+    if any(token in body for token in ("登錄信息有誤", "登录信息有误", "重新登錄", "重新登录", "incorrect", "invalid")):
+        raise RuntimeError("Mfood login rejected by platform; verify account/password or account region.")
     if "/login" in page.url or "#/login" in page.url:
         if manual_login:
-            print("[login] auto-login not completed, waiting for manual login...")
-            await page.wait_for_timeout(60_000)
-            return
+            if can_wait_for_manual_input():
+                print("[login] auto-login not completed, waiting for manual login...")
+                await asyncio.to_thread(input)
+                await page.wait_for_timeout(1_000)
+                if "/login" not in page.url and "#/login" not in page.url:
+                    return
+            raise RuntimeError("Mfood manual gate required: login did not complete in non-interactive server mode.")
         raise RuntimeError("Mfood login did not complete; maybe captcha/OTP/manual confirmation required.")
+    await close_startup_dialogs(page)
 
 
 async def open_review_page(page, portal_url: str) -> None:
+    await close_startup_dialogs(page)
     await page.goto(portal_url, wait_until="domcontentloaded", timeout=45_000)
     await page.wait_for_timeout(1_500)
+    await close_startup_dialogs(page)
     await _optional_click(page, ("订单管理", "訂單管理", "Order Management"))
     await _optional_click(page, ("评价管理", "評價管理", "外卖评价", "外賣評價", "Ratings", "Reviews"))
     await page.wait_for_timeout(1_200)
@@ -244,6 +355,13 @@ async def open_review_page(page, portal_url: str) -> None:
     try:
         await table.wait_for(timeout=20_000)
     except Exception as exc:
+        try:
+            body = await page.locator("body").inner_text(timeout=2000)
+        except Exception:
+            body = ""
+        blocker = classify_blocker_text(body)
+        if blocker:
+            raise RuntimeError(blocker) from exc
         login_like = False
         for selector in (
             "#username",
@@ -623,10 +741,21 @@ async def run() -> dict[str, Any]:
         export_dir.mkdir(parents=True, exist_ok=True)
         json_path = export_dir / "mfood_empty.json"
         csv_path = export_dir / "mfood_empty.csv"
-        if not json_path.exists():
-            json_path.write_text("{}", encoding="utf-8")
-        if not csv_path.exists():
-            csv_path.write_text("", encoding="utf-8")
+        empty_payload = {
+            "platform": args.platform_label,
+            "country": args.country_label,
+            "country_code": args.country_code or config.country_code,
+            "account": config.key,
+            "generated_at": datetime.now().isoformat(timespec="seconds"),
+            "review_count": 0,
+            "store_count": 0,
+            "errors": errors,
+            "manual_gate_required": any("manual gate" in error.lower() or "permission gate" in error.lower() for error in errors),
+            "reviews": [],
+        }
+        json_path.write_text(json.dumps(empty_payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        with csv_path.open("w", newline="", encoding="utf-8-sig") as file:
+            csv.DictWriter(file, fieldnames=FIELDS).writeheader()
 
     summary = {
         "json": str(json_path),

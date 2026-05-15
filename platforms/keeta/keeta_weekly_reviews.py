@@ -454,7 +454,16 @@ async def close_dialogs(page) -> None:
 async def is_logged_in(page) -> bool:
     if "login" in page.url.lower():
         return False
-    for selector in ("text=顾客评价", "text=订单管理", "text=门店", "text=评价"):
+    for selector in (
+        "text=顾客评价",
+        "text=订单管理",
+        "text=门店",
+        "text=评价",
+        "text=Reviews",
+        "text=Orders",
+        "text=Home",
+        "text=Manage my restaurant",
+    ):
         try:
             if await page.locator(selector).first.count():
                 return True
@@ -463,8 +472,22 @@ async def is_logged_in(page) -> bool:
     return False
 
 
+async def safe_goto(page, url: str, timeout: int = 60_000) -> None:
+    try:
+        await page.goto(url, wait_until="domcontentloaded", timeout=timeout)
+    except Exception as exc:
+        message = str(exc)
+        if "interrupted by another navigation" not in message:
+            raise
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=timeout)
+        except Exception:
+            pass
+    await page.wait_for_timeout(500)
+
+
 async def ensure_logged_in(page, username: str, password: str, no_login: bool = False) -> None:
-    await page.goto(INDEX_URL, wait_until="domcontentloaded", timeout=60_000)
+    await safe_goto(page, INDEX_URL)
     await page.wait_for_timeout(2500)
     if await is_logged_in(page):
         return
@@ -473,17 +496,39 @@ async def ensure_logged_in(page, username: str, password: str, no_login: bool = 
     if not username or not password:
         raise RuntimeError(f"KeeTa credentials missing. Provide env vars or {CREDENTIALS_FILE}.")
 
-    await page.goto(LOGIN_URL, wait_until="domcontentloaded", timeout=60_000)
+    await safe_goto(page, LOGIN_URL)
     await page.wait_for_timeout(2500)
     inputs = page.locator("input")
-    if await inputs.count() < 2:
+    input_count = await inputs.count()
+    if input_count < 1:
         raise RuntimeError("Login inputs not found.")
     await inputs.nth(0).fill(username)
-    await inputs.nth(1).fill(password)
+    await page.wait_for_timeout(300)
+
+    password_input = page.locator("input[type='password']").first
+    if input_count < 2 and await password_input.count() == 0:
+        clicked_continue = False
+        for label in ("Continue", "继续", "繼續", "下一步", "Next"):
+            clicked_continue = await safe_click_text(page, label, exact=False, timeout=900)
+            if clicked_continue:
+                break
+        if not clicked_continue:
+            await page.keyboard.press("Enter")
+        for _ in range(15):
+            await page.wait_for_timeout(1000)
+            password_input = page.locator("input[type='password']").first
+            if await password_input.count() > 0:
+                break
+    if await password_input.count() > 0:
+        await password_input.fill(password)
+    elif await page.locator("input").count() >= 2:
+        await page.locator("input").nth(1).fill(password)
+    else:
+        raise RuntimeError("Password input not found after email step.")
     await page.wait_for_timeout(300)
 
     clicked = False
-    for label in ("登录", "登入", "Sign in", "Log in"):
+    for label in ("登录", "登入", "Sign in", "Log in", "Continue"):
         clicked = await safe_click_text(page, label, exact=False, timeout=700)
         if clicked:
             break
@@ -498,17 +543,19 @@ async def ensure_logged_in(page, username: str, password: str, no_login: bool = 
 
 
 async def goto_evaluate(page) -> None:
-    await page.goto(EVALUATE_URL, wait_until="domcontentloaded", timeout=60_000)
+    await safe_goto(page, EVALUATE_URL)
     await page.wait_for_timeout(3500)
     if "login" in page.url.lower():
         return
     await close_dialogs(page)
     if "#/evaluate" not in page.url:
-        await safe_click_text(page, "顾客评价", exact=True, timeout=2500)
+        clicked = await safe_click_text(page, "顾客评价", exact=True, timeout=2500)
+        if not clicked:
+            await safe_click_text(page, "Reviews", exact=True, timeout=2500)
         await page.wait_for_timeout(3000)
         await close_dialogs(page)
     if "#/evaluate" not in page.url:
-        await page.goto(EVALUATE_URL, wait_until="domcontentloaded", timeout=60_000)
+        await safe_goto(page, EVALUATE_URL)
         await page.wait_for_timeout(3500)
         await close_dialogs(page)
 

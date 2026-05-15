@@ -245,8 +245,25 @@ def _normalized_record(raw: dict[str, Any], payload: dict[str, Any], run_id: str
     if _is_noise_order_detail(record.get("order_detail")):
         record["order_detail"] = ""
     record["review"] = _valid_review_text(record.get("review"))
+    if not record["review"]:
+        label_text = _valid_review_text(_label_review_text(raw))
+        if label_text:
+            record["review"] = label_text
+            record["review_type"] = record.get("review_type") or "tag_only"
+            flags = _as_list(record.get("quality_flags"))
+            if "tag_only_review" not in flags:
+                flags.append("tag_only_review")
+            record["quality_flags"] = flags
+        elif _clean_identity(record.get("rating")):
+            record["review_type"] = record.get("review_type") or "rating_only"
+            flags = _as_list(record.get("quality_flags"))
+            if "rating_only_review" not in flags:
+                flags.append("rating_only_review")
+            record["quality_flags"] = flags
     record["translated_review"] = _valid_review_text(record.get("translated_review"))
     record["customer"] = _clean_customer_display(record.get("customer"))
+    if not _clean_identity(record.get("order_total")):
+        record["order_total"] = _extract_order_total_from_text(record.get("order_detail"))
     if not _clean_identity(record.get("order_id")):
         source_text = f"{record.get('order_detail') or ''}\n{json.dumps(raw, ensure_ascii=False)[:6000]}"
         for pattern in ORDER_ID_PATTERNS:
@@ -360,6 +377,43 @@ def _valid_review_text(value: Any) -> str:
     if re.fullmatch(r"[\d\s:：\-.,，。/]+", text):
         return ""
     return text
+
+
+def _label_review_text(raw: dict[str, Any]) -> str:
+    parts: list[str] = []
+    for key in (
+        "Review Labels",
+        "Shop Labels",
+        "Rating Comment",
+        "Package Rating Comment",
+        "Taste Rating Comment",
+        "Recommended Items",
+    ):
+        text = str(raw.get(key) or "").strip()
+        if text and text not in {"-", "None", "null"}:
+            parts.append(text)
+    seen: set[str] = set()
+    unique = []
+    for part in parts:
+        if part not in seen:
+            unique.append(part)
+            seen.add(part)
+    return "；".join(unique)
+
+
+def _extract_order_total_from_text(value: Any) -> str:
+    text = str(value or "")
+    if not text:
+        return ""
+    patterns = (
+        r"(?:顾客支付|客戶支付|客户支付|Customer\s*paid|Customer\s*payment)\s*[:：]?\s*([A-Z$€£¥￥]*\s*\d+(?:[.,]\d{1,2})?)",
+        r"(?:订单总额|訂單總額|合计|合計|Total)\s*[:：]?\s*([A-Z$€£¥￥]*\s*\d+(?:[.,]\d{1,2})?)",
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text, flags=re.IGNORECASE)
+        if match:
+            return re.sub(r"\s+", "", match.group(1)).strip()
+    return ""
 
 
 def _clean_customer_display(value: Any) -> str:
@@ -485,6 +539,25 @@ def _record_score(record: dict[str, Any]) -> int:
     return score
 
 
+def _has_review_signal(record: dict[str, Any]) -> bool:
+    if record.get("review") not in (None, "", []) or record.get("translated_review") not in (None, "", []):
+        return True
+    if record.get("review_type") in {"tag_only", "rating_only"}:
+        return True
+    return bool(_clean_identity(record.get("rating")))
+
+
+def _looks_like_manual_gate(errors: list[Any]) -> bool:
+    joined = "\n".join(str(error) for error in errors)
+    return bool(
+        re.search(
+            r"manual gate|captcha|otp|mfa|two[-\s]?factor|saved account|login|password change|initial-password|permission gate|权限|權限|验证码|驗證碼|人工",
+            joined,
+            re.IGNORECASE,
+        )
+    )
+
+
 def _merge_records(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
     primary, secondary = (incoming, existing) if _record_score(incoming) > _record_score(existing) else (existing, incoming)
     merged = dict(primary)
@@ -559,16 +632,34 @@ def build_quality_report(records: list[dict[str, Any]], payload: dict[str, Any],
     total = len(records)
     non_empty = 0
     for record in records:
-        non_empty += sum(1 for field in core_fields if record.get(field) not in (None, "", []))
+        for field in core_fields:
+            if field == "review" and _has_review_signal(record):
+                non_empty += 1
+            elif record.get(field) not in (None, "", []):
+                non_empty += 1
     completeness = round(non_empty / max(1, total * len(core_fields)), 4)
     order_rows = [record for record in records if record.get("order_id")]
     detail_rows = [record for record in order_rows if record.get("order_detail") or record.get("ordered_items")]
     identity_counts = Counter(_record_identity(record) for record in records)
     duplicates = sum(count - 1 for count in identity_counts.values() if count > 1)
+    payload_errors = payload.get("errors") or []
+    if not isinstance(payload_errors, list):
+        payload_errors = [str(payload_errors)]
+    manual_gate_count = 1 if payload.get("manual_gate_required") or _looks_like_manual_gate(payload_errors) else 0
     missing_core = [
-        {"index": index, "missing": [field for field in core_fields if record.get(field) in (None, "", [])]}
+        {
+            "index": index,
+            "missing": [
+                field
+                for field in core_fields
+                if not (field == "review" and _has_review_signal(record)) and record.get(field) in (None, "", [])
+            ],
+        }
         for index, record in enumerate(records, start=1)
-        if any(record.get(field) in (None, "", []) for field in core_fields)
+        if any(
+            not (field == "review" and _has_review_signal(record)) and record.get(field) in (None, "", [])
+            for field in core_fields
+        )
     ][:100]
     return {
         "generated_at": datetime.now().isoformat(timespec="seconds"),
@@ -580,9 +671,11 @@ def build_quality_report(records: list[dict[str, Any]], payload: dict[str, Any],
         "image_url_count": sum(len(_as_list(record.get("image_urls"))) for record in records),
         "duplicate_count": duplicates,
         "out_of_range_count": 0,
-        "manual_gate_count": 0,
-        "error_count": len(payload.get("errors") or []),
-        "errors": payload.get("errors") or [],
+        "manual_gate_count": manual_gate_count,
+        "error_count": len(payload_errors),
+        "tag_only_count": sum(1 for record in records if record.get("review_type") == "tag_only"),
+        "rating_only_count": sum(1 for record in records if record.get("review_type") == "rating_only"),
+        "errors": payload_errors,
         "missing_core_samples": missing_core,
         "retry_candidates": [
             {
