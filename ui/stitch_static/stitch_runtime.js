@@ -820,13 +820,20 @@
       });
       (coordinator.history || []).forEach(hist => {
         const run = runMap.get(hist.run_id || '');
+        const runHealth = String(run?.health_status || '').toLowerCase();
+        let historyStatus = hist.ok ? 'Success' : 'Failed';
+        if (runHealth === 'running') historyStatus = 'Running';
+        else if (runHealth === 'failed') historyStatus = 'Failed';
+        else if (runHealth === 'partial') historyStatus = 'Partial';
+        else if (runHealth === 'empty') historyStatus = 'No Reviews';
+        else if (hist.ok && Number(run?.review_count ?? hist.reviews ?? 0) <= 0) historyStatus = 'No Reviews';
         rows.push({
           id: hist.run_id || hist.key || `HIS-${Date.now()}`,
           platform: platformLabel((hist.key || '').split(':')[0] || ''),
           geo: (hist.key || '').split(':')[1] || '-',
           scope: 'All Active JDE',
           mode: hist.dry_run ? 'Dry Run' : 'Immediate',
-          status: hist.ok ? 'Success' : 'Failed',
+          status: historyStatus,
           extracted: (run?.review_count ?? hist.reviews ?? '-'),
           failed: (run?.error_count ?? ((hist.errors || []).length) ?? '-'),
           when: hist.finished_at || hist.started_at || run?.updated_at || '',
@@ -1459,6 +1466,7 @@
     if (key === 'running') return { label: translatePhrase('Running'), cls: 'bg-[#ff9800] text-primary' };
     if (key === 'partial') return { label: translatePhrase('Partial'), cls: 'bg-[#ff9800] text-primary' };
     if (key === 'failed') return { label: translatePhrase('Failed'), cls: 'bg-error text-on-error' };
+    if (key === 'empty' || key === 'no reviews') return { label: lang() === 'zh' ? '无评论' : 'No Reviews', cls: 'bg-surface-variant text-primary border border-outline-variant' };
     return { label: translatePhrase('Pending'), cls: 'bg-surface-variant text-primary border border-outline-variant' };
   }
   function derivePlatformStates(status, runs) {
@@ -1468,10 +1476,15 @@
       const key = canonicalUiPlatform(run.platform || '');
       if (!key) return;
       let state = 'pending';
-      if ((run.last_stage || '').toLowerCase().includes('running')) state = 'running';
+      const health = String(run.health_status || '').toLowerCase();
+      if (health === 'running' || (run.last_stage || '').toLowerCase().includes('running')) state = 'running';
+      else if (health === 'failed') state = 'failed';
+      else if (health === 'partial') state = 'partial';
+      else if (health === 'empty') state = 'empty';
+      else if (health === 'ok' || Number(run.review_count || 0) > 0) state = 'success';
       else if (Number(run.error_count || 0) > 0 && Number(run.review_count || 0) > 0) state = 'partial';
       else if (Number(run.error_count || 0) > 0) state = 'failed';
-      else if ((run.last_stage || '').toLowerCase().includes('finish') || Number(run.review_count || 0) > 0) state = 'success';
+      else if ((run.last_stage || '').toLowerCase().includes('finish')) state = 'empty';
       const detail = run.quality_error || run.last_stage || '';
       states[key] = { state, detail, run };
     });
