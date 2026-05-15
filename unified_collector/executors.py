@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import re
 import subprocess
 import sys
@@ -29,7 +30,21 @@ def _output_prefix(task: CollectionTask, fallback: str) -> str:
 
 
 def _registry_path(task: CollectionTask) -> str:
-    return task.store_registry or str(task.options.get("store_registry") or task.options.get("registry") or DEFAULT_REGISTRY)
+    configured = task.store_registry or str(task.options.get("store_registry") or task.options.get("registry") or "")
+    if configured and Path(configured).exists():
+        return configured
+    return str(DEFAULT_REGISTRY)
+
+
+def _browser_channel(task: CollectionTask, default: str = "msedge") -> str:
+    channel = str(task.options.get("browser_channel", default) or "").strip()
+    if channel.lower() == "msedge" and platform.system().lower() != "windows":
+        return ""
+    return channel
+
+
+def _append_browser_channel(args: list[str], task: CollectionTask, default: str = "msedge") -> None:
+    args.extend(["--browser-channel", _browser_channel(task, default)])
 
 
 def _store_metrics(task: CollectionTask, platform: str, require_url: bool = False) -> dict[str, Any]:
@@ -50,7 +65,7 @@ def _store_metrics(task: CollectionTask, platform: str, require_url: bool = Fals
 
 
 def _append_headless(args: list[str], task: CollectionTask) -> None:
-    if _bool_option(task, "headless", True):
+    if platform.system().lower() != "windows" or _bool_option(task, "headless", True):
         args.append("--headless")
 
 
@@ -317,11 +332,10 @@ def run_google_maps(task: CollectionTask) -> ExecutorResult:
         str(task.time_range.days),
         "--max-reviews-per-store",
         str(task.max_reviews),
-        "--browser-channel",
-        str(task.options.get("browser_channel", "msedge")),
         "--output-prefix",
         _output_prefix(task, f"unified_google_maps_{task.country or 'all'}"),
     ]
+    _append_browser_channel(args, task)
     _append_headless(args, task)
     if task.country:
         args.extend(["--country", task.country])
@@ -352,11 +366,10 @@ def run_keeta(task: CollectionTask) -> ExecutorResult:
         "platforms/keeta/keeta_weekly_reviews.py",
         "--max-reviews",
         str(task.max_reviews),
-        "--browser-channel",
-        str(task.options.get("browser_channel", "msedge")),
         "--output-prefix",
         _output_prefix(task, "unified_keeta_hk"),
     ]
+    _append_browser_channel(args, task)
     _append_headless(args, task)
     if task.time_range.type == "fixed":
         args.extend(["--start-date", task.time_range.start_date, "--end-date", task.time_range.end_date])
@@ -384,11 +397,10 @@ def run_openrice(task: CollectionTask) -> ExecutorResult:
         "platforms/openrice/openrice_public_reviews.py",
         "--max-reviews-per-shop",
         str(task.max_reviews),
-        "--browser-channel",
-        str(task.options.get("browser_channel", "msedge")),
         "--output-prefix",
         _output_prefix(task, "unified_openrice_hk"),
     ]
+    _append_browser_channel(args, task)
     _append_headless(args, task)
     if task.options.get("chain_url"):
         args.extend(["--chain-url", str(task.options["chain_url"])])
@@ -420,6 +432,7 @@ def run_dianping(task: CollectionTask) -> ExecutorResult:
         "--output-prefix",
         _output_prefix(task, f"unified_dianping_{task.country or 'all'}"),
     ]
+    _append_browser_channel(args, task)
     _append_headless(args, task)
     if task.country:
         args.extend(["--country", task.country])
@@ -466,6 +479,7 @@ def run_uber_eats(task: CollectionTask) -> ExecutorResult:
         "--output-prefix",
         _output_prefix(task, f"unified_uber_eats_{task.country or account_key}"),
     ]
+    _append_browser_channel(args, task)
     _append_headless(args, task)
     if task.country:
         args.extend(["--country", task.country])

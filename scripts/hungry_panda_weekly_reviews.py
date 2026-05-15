@@ -5,6 +5,7 @@ import asyncio
 import csv
 import json
 import os
+import platform
 import re
 import sys
 from dataclasses import dataclass
@@ -23,6 +24,10 @@ DATA = ROOT / "data"
 EXPORTS = ROOT / "exports"
 CREDENTIALS_FILE = DATA / "hungry_panda_credentials.local.json"
 ORDER_DETAIL_API = "/api/merchant/order/detail"
+
+
+def default_browser_channel() -> str | None:
+    return "msedge" if platform.system().lower() == "windows" else None
 
 
 @dataclass(frozen=True)
@@ -841,12 +846,14 @@ async def main() -> None:
     branch_stats: list[dict[str, Any]] = []
 
     async with async_playwright() as playwright:
-        context = await playwright.chromium.launch_persistent_context(
-            str(profile),
-            channel="msedge",
-            headless=args.headless,
-            viewport={"width": 1920, "height": 1080},
-        )
+        launch_options: dict[str, Any] = {
+            "headless": args.headless,
+            "viewport": {"width": 1920, "height": 1080},
+        }
+        channel = default_browser_channel()
+        if channel:
+            launch_options["channel"] = channel
+        context = await playwright.chromium.launch_persistent_context(str(profile), **launch_options)
         master_page = context.pages[0] if context.pages else await context.new_page()
         await master_page.goto(region.branch_url, wait_until="domcontentloaded", timeout=45_000)
         await master_page.wait_for_timeout(3_500)

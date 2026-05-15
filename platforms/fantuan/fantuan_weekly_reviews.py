@@ -6,6 +6,7 @@ import csv
 from dataclasses import dataclass
 import json
 import os
+import platform
 import sys
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -18,6 +19,10 @@ if hasattr(sys.stderr, "reconfigure"):
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def default_browser_channel() -> str | None:
+    return "msedge" if platform.system().lower() == "windows" else None
 DATA = ROOT / "data"
 CREDENTIALS_FILE = DATA / "fantuan_credentials.local.json"
 EXPORTS = ROOT / "exports" / "fantuan"
@@ -712,12 +717,14 @@ async def collect_reviews(args: argparse.Namespace) -> tuple[CountryConfig, dict
 
     config.profile_dir.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as playwright:
-        context = await playwright.chromium.launch_persistent_context(
-            str(config.profile_dir),
-            channel="msedge",
-            headless=args.headless,
-            viewport={"width": 1920, "height": 1080},
-        )
+        launch_options: dict[str, Any] = {
+            "headless": args.headless,
+            "viewport": {"width": 1920, "height": 1080},
+        }
+        channel = default_browser_channel()
+        if channel:
+            launch_options["channel"] = channel
+        context = await playwright.chromium.launch_persistent_context(str(config.profile_dir), **launch_options)
         page = context.pages[0] if context.pages else await context.new_page()
         await ensure_logged_in(page, config, username, password)
 
