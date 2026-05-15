@@ -530,6 +530,7 @@ def _parse_ordered_items(value: Any) -> list[dict[str, Any]]:
             "finalPrice",
             "singlePrice",
             "subtotal",
+            "order_total",
         )
         price = ""
         for key in price_keys:
@@ -736,6 +737,7 @@ def _normalize_ui_review(raw: dict[str, Any], payload: dict[str, Any], source_fi
     if _is_noise_order_detail(order_detail):
         order_detail = ""
     order_id = _first(raw, "order_id", "Order ID", "Order View ID")
+    order_total = _first(raw, "order_total", "Order Total", "Total", "Subtotal", "订单金额", "訂單金額")
     if not _meaningful(order_id):
         order_id = _extract_order_id_from_text(order_detail) or _extract_order_id_from_text(json.dumps(raw, ensure_ascii=False)[:6000])
     quality_flags = _as_list(_first(raw, "quality_flags", "Quality Flags"))
@@ -763,6 +765,7 @@ def _normalize_ui_review(raw: dict[str, Any], payload: dict[str, Any], source_fi
         "order_id": str(order_id),
         "ordered_items": ordered_items,
         "order_detail": str(order_detail),
+        "order_total": str(order_total),
         "image_urls": image_urls,
         "source": str(_first(raw, "source", "Source", default="jsonl" if source_file.suffix == ".jsonl" else "json")),
         "source_file": str(source_file.relative_to(ROOT)),
@@ -970,7 +973,7 @@ def _clean_customer_display(value: Any) -> str:
 
 def _review_completeness_score(record: dict[str, Any]) -> int:
     score = 0
-    for field in ("platform", "country", "store", "store_id", "rating", "review", "translated_review", "customer", "review_time", "order_id"):
+    for field in ("platform", "country", "store", "store_id", "rating", "review", "translated_review", "customer", "review_time", "order_id", "order_total"):
         if _meaningful(record.get(field)):
             score += 4
     items = record.get("ordered_items")
@@ -992,6 +995,7 @@ def _review_completeness_score(record: dict[str, Any]) -> int:
                 or item.get("finalPrice")
                 or item.get("singlePrice")
                 or item.get("subtotal")
+                or item.get("order_total")
             )
         )
     if _meaningful(record.get("order_detail")):
@@ -1054,6 +1058,7 @@ def _merge_review_records(existing: dict[str, Any], incoming: dict[str, Any]) ->
                         or item.get("finalPrice")
                         or item.get("singlePrice")
                         or item.get("subtotal")
+                        or item.get("order_total")
                     )
                     total += (2 if has_name else 0) + (3 if has_qty else 0) + (5 if has_price else 0)
                     if re.search(r"(商品|產品|产品|饮品|飲品|goods|product|item|price|单价|單價)", text, flags=re.IGNORECASE):

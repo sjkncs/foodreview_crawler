@@ -29,6 +29,7 @@ NORMALIZED_FIELDS = (
     "order_id",
     "ordered_items",
     "order_detail",
+    "order_total",
     "image_urls",
     "source",
     "raw_json",
@@ -55,6 +56,7 @@ FIELD_ALIASES = {
     "order_id": ("order_id", "Order ID", "Order SN", "POS Order ID", "Order View ID", "订单号"),
     "ordered_items": ("ordered_items", "Ordered Items", "Order Items JSON", "Order Items Text", "items", "Products", "Order Items", "Order Detail JSON"),
     "order_detail": ("order_detail", "Order Detail", "Order Details", "Expanded Order Detail", "order_details", "Order Detail JSON"),
+    "order_total": ("order_total", "Order Total", "Total", "Subtotal", "订单金额", "訂單金額"),
     "image_urls": ("image_urls", "Image URLs", "Review Image URLs", "Photo URLs", "photos", "Product Image URLs"),
     "source": ("source", "Source"),
     "quality_flags": ("quality_flags", "Quality Flags"),
@@ -468,13 +470,13 @@ def _is_non_review_page_record(record: dict[str, Any]) -> bool:
 
 def _record_score(record: dict[str, Any]) -> int:
     score = 0
-    for field in ("platform", "country", "account", "store", "store_id", "rating", "review", "translated_review", "customer", "review_time", "order_id"):
+    for field in ("platform", "country", "account", "store", "store_id", "rating", "review", "translated_review", "customer", "review_time", "order_id", "order_total"):
         if _clean_identity(record.get(field)):
             score += 4
     items = record.get("ordered_items")
     if isinstance(items, list) and items:
         score += 18 + min(len(items), 8)
-        score += sum(1 for item in items if isinstance(item, dict) and _clean_identity(item.get("price") or item.get("unit_price")))
+        score += sum(1 for item in items if isinstance(item, dict) and _clean_identity(item.get("price") or item.get("unit_price") or item.get("order_total")))
     if _clean_identity(record.get("order_detail")):
         score += 18 + min(len(str(record.get("order_detail"))), 300) // 30
     images = _as_list(record.get("image_urls"))

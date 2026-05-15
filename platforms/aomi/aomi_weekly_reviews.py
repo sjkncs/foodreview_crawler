@@ -426,12 +426,20 @@ def parse_product_items(product_view: dict[str, Any]) -> list[dict[str, Any]]:
     return items
 
 
-def build_order_detail(detail: dict[str, Any]) -> tuple[str, list[dict[str, Any]], str]:
+def build_order_detail(detail: dict[str, Any]) -> tuple[str, list[dict[str, Any]], str, str]:
     product_view = detail.get("productView") if isinstance(detail.get("productView"), dict) else {}
     send_view = detail.get("sendView") if isinstance(detail.get("sendView"), dict) else {}
     order_id = clean_text(product_view.get("orderId"))
     items = parse_product_items(product_view)
     total = clean_text(product_view.get("showPrice") or product_view.get("price"))
+    billable_items = [
+        item
+        for item in items
+        if clean_text(item.get("quantity")) not in {"0", "0.0"} and "膠袋" not in clean_text(item.get("name"))
+    ]
+    if total and len(billable_items) == 1 and not clean_text(billable_items[0].get("price")):
+        billable_items[0]["price"] = total
+        billable_items[0]["order_total"] = total
     lines = []
     if product_view:
         lines.extend(
@@ -452,7 +460,7 @@ def build_order_detail(detail: dict[str, Any]) -> tuple[str, list[dict[str, Any]
                 f"配送进度：{clean_text(send_view.get('schedule'))}",
             ]
         )
-    return order_id, items, "\n".join(line for line in lines if clean_text(line.split("：", 1)[-1]) or line.endswith("："))
+    return order_id, items, "\n".join(line for line in lines if clean_text(line.split("：", 1)[-1]) or line.endswith("：")), total
 
 
 def normalize_review(
@@ -463,7 +471,7 @@ def normalize_review(
     args: argparse.Namespace,
 ) -> dict[str, Any]:
     merged = {**list_item, **{k: v for k, v in detail.items() if v not in (None, "", [], {})}}
-    order_id, ordered_items, order_detail = build_order_detail(merged)
+    order_id, ordered_items, order_detail, order_total = build_order_detail(merged)
     image_urls = [str(url) for url in (merged.get("medias") or []) if str(url).startswith(("http://", "https://"))]
     review_text = clean_text(merged.get("content"))
     flags: list[str] = []
@@ -492,6 +500,7 @@ def normalize_review(
         "order_id": order_id,
         "ordered_items": ordered_items,
         "order_detail": order_detail,
+        "order_total": order_total,
         "image_urls": image_urls,
         "source": REVIEW_URL,
         "quality_flags": flags,

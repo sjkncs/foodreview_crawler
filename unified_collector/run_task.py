@@ -8,10 +8,10 @@ from dataclasses import replace
 
 if __package__ in (None, ""):
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from unified_collector.executors import run_task
+    from unified_collector.coordinator import COORDINATOR
     from unified_collector.task_loader import load_task
 else:
-    from .executors import run_task
+    from .coordinator import COORDINATOR
     from .task_loader import load_task
 
 
@@ -28,7 +28,7 @@ def main() -> None:
     task = load_task(args.task)
     if args.dry_run:
         task = replace(task, options={**task.options, "dry_run": True})
-    result = run_task(task)
+    result = COORDINATOR.dry_run(task) if args.dry_run else COORDINATOR.run(task, action="cli_run")
     if args.pretty:
         print(json.dumps(result.to_dict(), ensure_ascii=False, indent=2))
     else:
