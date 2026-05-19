@@ -102,6 +102,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--file-tag", default="mfood", help="File name tag for output")
     parser.add_argument("--export-dir", default="", help="Override export directory")
     parser.add_argument("--profile-name", default="", help="Override Playwright persistent profile name")
+    parser.add_argument("--storage-state", default="", help="Optional Playwright storage_state JSON path for restored login sessions")
     return parser.parse_args()
 
 
@@ -110,7 +111,83 @@ def clean_text(value: Any) -> str:
 
 
 def can_wait_for_manual_input() -> bool:
+    if os.getenv("GLOBALREVIEWOPS_NONINTERACTIVE") == "1":
+        return False
     return bool(getattr(sys.stdin, "isatty", lambda: False)())
+
+
+def default_storage_state_path(profile_name: str) -> Path:
+    return DATA / "browser_profiles" / f"{profile_name}_storage_state.json"
+
+
+def _safe_excerpt(text: str, limit: int = 3000) -> str:
+    cleaned = clean_text(text)
+    cleaned = re.sub(r"[\w.+-]+@[\w.-]+", "[email]", cleaned)
+    cleaned = re.sub(r"\b\d{6,}\b", "[number]", cleaned)
+    return cleaned[:limit]
+
+
+async def classify_page_state(page) -> dict[str, str]:
+    try:
+        body = await page.locator("body").inner_text(timeout=2_000)
+    except Exception:
+        body = ""
+    try:
+        title = await page.title()
+    except Exception:
+        title = ""
+    blocker = classify_blocker_text(body)
+    if blocker:
+        if "permission gate" in blocker:
+            return {"type": "permission", "message": blocker}
+        if "captcha" in blocker.lower() or "otp" in blocker.lower():
+            return {"type": "captcha_or_otp", "message": blocker}
+        if "initial-password" in blocker:
+            return {"type": "password_change_prompt", "message": blocker}
+        return {"type": "manual_gate", "message": blocker}
+    text = clean_text(f"{title} {body}")
+    if "/login" in page.url or "#/login" in page.url:
+        return {"type": "login_required", "message": "Mfood login has not completed in this browser session."}
+    if any(token in text for token in ("訂單管理", "订单管理", "評價管理", "评价管理", "外賣評價", "外卖评价")):
+        return {"type": "review_menu_visible", "message": "Mfood order/evaluation menu is visible."}
+    return {"type": "unknown_page_state", "message": "Mfood page state could not be classified from the visible page."}
+
+
+async def write_diagnostics(page, config: AccountConfig, reason: str, export_dir: Path, output_prefix: str = "") -> dict[str, str]:
+    diag_dir = export_dir / "_diagnostics" / config.key
+    diag_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    prefix = f"{output_prefix}_" if output_prefix else ""
+    base = diag_dir / f"{prefix}mfood_{config.key}_{stamp}"
+    try:
+        body = await page.locator("body").inner_text(timeout=2_000)
+    except Exception:
+        body = ""
+    try:
+        title = await page.title()
+    except Exception:
+        title = ""
+    screenshot_path = base.with_suffix(".png")
+    screenshot_value = str(screenshot_path)
+    try:
+        await page.screenshot(path=str(screenshot_path), full_page=True)
+    except Exception:
+        screenshot_value = ""
+    state = await classify_page_state(page)
+    json_path = base.with_suffix(".json")
+    payload = {
+        "platform": "Mfood",
+        "account_key": config.key,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "reason": reason,
+        "state": state,
+        "url": page.url,
+        "title": title,
+        "text_excerpt": _safe_excerpt(body),
+        "screenshot": screenshot_value,
+    }
+    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"diagnostics_json": str(json_path), "diagnostics_screenshot": screenshot_value}
 
 
 def classify_blocker_text(body: str) -> str:
@@ -696,21 +773,36 @@ async def run() -> dict[str, Any]:
     username, password = load_credentials(args, config)
     errors: list[str] = []
     reviews: list[dict[str, Any]] = []
+    diagnostics: dict[str, str] = {}
+    manual_gate_type = ""
 
     profile_name = clean_text(args.profile_name)
     if not profile_name and clean_text(args.file_tag).lower() not in {"", "mfood"}:
         profile_name = f"{clean_text(args.file_tag).lower()}_{config.key}"
     profile_dir = DATA / "browser_profiles" / profile_name if profile_name else config.profile_dir
+    resolved_profile_name = profile_name or config.profile_name
+    storage_state = Path(args.storage_state).expanduser() if args.storage_state else default_storage_state_path(resolved_profile_name)
+    storage_state = storage_state if storage_state.is_absolute() else (ROOT / storage_state)
     profile_dir.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as pw:
+        browser = None
         try:
-            context = await pw.chromium.launch_persistent_context(
-                user_data_dir=str(profile_dir),
-                headless=args.headless,
-                viewport={"width": 1600, "height": 1000},
-                locale="zh-CN",
-                ignore_https_errors=True,
-            )
+            if storage_state.exists():
+                browser = await pw.chromium.launch(headless=args.headless)
+                context = await browser.new_context(
+                    storage_state=str(storage_state),
+                    viewport={"width": 1600, "height": 1000},
+                    locale="zh-CN",
+                    ignore_https_errors=True,
+                )
+            else:
+                context = await pw.chromium.launch_persistent_context(
+                    user_data_dir=str(profile_dir),
+                    headless=args.headless,
+                    viewport={"width": 1600, "height": 1000},
+                    locale="zh-CN",
+                    ignore_https_errors=True,
+                )
         except Exception as exc:
             fallback_profile = DATA / "browser_profiles" / f"{profile_dir.name}_retry_{os.getpid()}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             fallback_profile.mkdir(parents=True, exist_ok=True)
@@ -729,9 +821,22 @@ async def run() -> dict[str, Any]:
             reviews, crawl_errors = await collect_reviews(page, config, args)
             errors.extend(crawl_errors)
         except Exception as exc:
-            errors.append(str(exc))
+            message = str(exc)
+            errors.append(message)
+            state = await classify_page_state(page)
+            manual_gate_type = state.get("type", "")
+            export_dir = Path(args.export_dir).expanduser() if args.export_dir else config.export_dir
+            export_dir = export_dir if export_dir.is_absolute() else (ROOT / export_dir)
+            diagnostics = await write_diagnostics(page, config, message, export_dir, args.output_prefix)
         finally:
+            try:
+                storage_state.parent.mkdir(parents=True, exist_ok=True)
+                await context.storage_state(path=str(storage_state))
+            except Exception:
+                pass
             await context.close()
+            if browser:
+                await browser.close()
 
     if reviews:
         json_path, csv_path = write_exports(config, reviews, args.output_prefix, args)
@@ -751,6 +856,14 @@ async def run() -> dict[str, Any]:
             "store_count": 0,
             "errors": errors,
             "manual_gate_required": any("manual gate" in error.lower() or "permission gate" in error.lower() for error in errors),
+            "manual_gate_type": manual_gate_type,
+            "diagnostics": diagnostics,
+            "storage_state": str(storage_state),
+            "retry_suggestions": [
+                "先在可视浏览器完成 Mfood 登录，确认订单管理/外卖评价可见后再重跑。",
+                "如果只看到门店管理/权限管理，说明账号缺少评价读取权限，需要平台后台授权。",
+                "如果出现初始密码修改/验证码/OTP，脚本必须暂停，不能自动修改密码或绕过验证。",
+            ],
             "reviews": [],
         }
         json_path.write_text(json.dumps(empty_payload, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -763,6 +876,10 @@ async def run() -> dict[str, Any]:
         "review_count": len(reviews),
         "store_count": 0,
         "errors": errors,
+        "manual_gate_required": any("manual gate" in error.lower() or "permission gate" in error.lower() for error in errors),
+        "manual_gate_type": manual_gate_type,
+        "diagnostics": diagnostics,
+        "storage_state": str(storage_state),
         "sample": reviews[:3],
     }
     print(json.dumps(summary, ensure_ascii=False))

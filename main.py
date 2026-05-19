@@ -1487,10 +1487,12 @@ def _manual_gate_retry_steps(platform: str) -> list[str]:
         "grabfood": [
             "GrabFood 优先确认 Go to Portal 后能看到 Feedback → Ratings and reviews。",
             "如果出现 saved account、captcha 或 OTP，先在可视浏览器完成一次认证。",
+            "可运行 scripts/bootstrap_merchant_session.py --platform grabfood --account <账号键> 导出 storage_state，服务器小时同步会复用该登录态。",
         ],
         "mfood": [
             "Mfood 若出现初始密码修改弹窗，自动化会停止；需人工确认账号策略，不能由脚本改密码。",
             "Mfood 若只有门店管理/权限管理菜单，说明当前账号缺少订单评价读取权限。",
+            "可运行 scripts/bootstrap_merchant_session.py --platform mfood --account <账号键> 建立只读评价页登录态。",
         ],
         "keeta": [
             "KeeTa 若跳回登录页或出现二次验证，先人工恢复登录态，再执行近7天任务。",

@@ -115,6 +115,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--username", default="", help="Login username")
     parser.add_argument("--password", default="", help="Login password")
     parser.add_argument("--output-prefix", default="", help="Optional export filename prefix")
+    parser.add_argument("--storage-state", default="", help="Optional Playwright storage_state JSON path for restored login sessions")
     return parser.parse_args()
 
 
@@ -314,7 +315,127 @@ async def accept_cookie_banner(page) -> None:
 
 
 def can_wait_for_manual_input() -> bool:
+    if os.getenv("GLOBALREVIEWOPS_NONINTERACTIVE") == "1":
+        return False
     return bool(getattr(sys.stdin, "isatty", lambda: False)())
+
+
+def default_storage_state_path(config: AccountConfig) -> Path:
+    return DATA / "browser_profiles" / f"{config.profile_name}_storage_state.json"
+
+
+def _safe_excerpt(text: str, limit: int = 3000) -> str:
+    cleaned = clean_text(text)
+    cleaned = re.sub(r"[\w.+-]+@[\w.-]+", "[email]", cleaned)
+    cleaned = re.sub(r"\b\d{6,}\b", "[number]", cleaned)
+    return cleaned[:limit]
+
+
+async def classify_login_state(page) -> dict[str, str]:
+    try:
+        body = await page.locator("body").inner_text(timeout=2_000)
+    except Exception:
+        body = ""
+    try:
+        title = await page.title()
+    except Exception:
+        title = ""
+    text = clean_text(f"{title} {body}")
+    lowered = text.lower()
+    url = page.url
+    if await page.get_by_text("Feedback", exact=True).count() > 0:
+        return {"type": "logged_in", "message": "GrabFood portal is logged in and Feedback menu is visible."}
+    if "saved-accounts" in url or "welcome back" in lowered or "continue as" in lowered:
+        return {
+            "type": "saved_account_confirmation",
+            "message": "GrabFood saved-account confirmation is blocking unattended collection.",
+        }
+    if "otp" in lowered or "one-time" in lowered or "verification code" in lowered or "2-step" in lowered:
+        return {"type": "otp", "message": "GrabFood OTP or two-step verification is required."}
+    if "captcha" in lowered or "recaptcha" in lowered or "security check" in lowered:
+        return {"type": "captcha", "message": "GrabFood captcha/security check is required."}
+    if "password" in lowered or "weblogin.grab.com" in url or "login" in url.lower():
+        return {"type": "login_required", "message": "GrabFood login has not completed in this browser session."}
+    if "forbidden" in lowered or "not authorized" in lowered or "permission" in lowered:
+        return {"type": "permission", "message": "GrabFood portal is reachable but the account may not have Feedback permissions."}
+    return {"type": "unknown_portal_state", "message": "GrabFood portal state could not be classified from the visible page."}
+
+
+async def write_diagnostics(page, config: AccountConfig, reason: str, output_prefix: str = "") -> dict[str, str]:
+    diag_dir = EXPORTS / "_diagnostics" / config.country_code / config.key
+    diag_dir.mkdir(parents=True, exist_ok=True)
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    prefix = f"{output_prefix}_" if output_prefix else ""
+    base = diag_dir / f"{prefix}grabfood_{config.key}_{stamp}"
+    try:
+        body = await page.locator("body").inner_text(timeout=2_000)
+    except Exception:
+        body = ""
+    try:
+        title = await page.title()
+    except Exception:
+        title = ""
+    screenshot_path = base.with_suffix(".png")
+    screenshot_value = str(screenshot_path)
+    json_path = base.with_suffix(".json")
+    try:
+        await page.screenshot(path=str(screenshot_path), full_page=True)
+    except Exception:
+        screenshot_value = ""
+    state = await classify_login_state(page)
+    payload = {
+        "platform": "GrabFood",
+        "account_key": config.key,
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "reason": reason,
+        "state": state,
+        "url": page.url,
+        "title": title,
+        "text_excerpt": _safe_excerpt(body),
+        "screenshot": screenshot_value,
+    }
+    json_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"diagnostics_json": str(json_path), "diagnostics_screenshot": screenshot_value}
+
+
+async def launch_browser_context(playwright, config: AccountConfig, args: argparse.Namespace):
+    storage_state = Path(args.storage_state).expanduser() if args.storage_state else default_storage_state_path(config)
+    storage_state = storage_state if storage_state.is_absolute() else ROOT / storage_state
+    launch_options: dict[str, Any] = {
+        "headless": args.headless,
+    }
+    channel = default_browser_channel()
+    if channel:
+        launch_options["channel"] = channel
+
+    if storage_state.exists():
+        browser = await playwright.chromium.launch(**launch_options)
+        context = await browser.new_context(
+            storage_state=str(storage_state),
+            viewport={"width": 1920, "height": 1080},
+            locale="en-US",
+        )
+        return context, browser, storage_state
+
+    config.profile_dir.mkdir(parents=True, exist_ok=True)
+    context = await playwright.chromium.launch_persistent_context(
+        str(config.profile_dir),
+        viewport={"width": 1920, "height": 1080},
+        **launch_options,
+    )
+    return context, None, storage_state
+
+
+async def close_browser_context(context, browser, storage_state: Path | None) -> None:
+    if storage_state:
+        try:
+            storage_state.parent.mkdir(parents=True, exist_ok=True)
+            await context.storage_state(path=str(storage_state))
+        except Exception:
+            pass
+    await context.close()
+    if browser:
+        await browser.close()
 
 
 async def ensure_logged_in(page, config: AccountConfig, username: str, password: str, manual_login: bool):
@@ -431,9 +552,10 @@ async def ensure_logged_in(page, config: AccountConfig, username: str, password:
 
     if manual_login and await page.get_by_text("Feedback", exact=True).count() == 0:
         if not can_wait_for_manual_input():
+            state = await classify_login_state(page)
             raise RuntimeError(
-                "GrabFood manual gate required: portal login, saved account confirmation, captcha, or OTP is blocking "
-                "server-side collection. Complete one visible-browser login session, then rerun the task."
+                f"GrabFood manual gate required ({state['type']}): {state['message']} "
+                "Complete one visible-browser login session or import storage_state, then rerun the task."
             )
         print("Manual login required. Complete login in the opened browser, then press Enter here.")
         await asyncio.to_thread(input)
@@ -443,7 +565,8 @@ async def ensure_logged_in(page, config: AccountConfig, username: str, password:
     if await page.get_by_text("Feedback", exact=True).count() == 0 and (
         "weblogin.grab.com" in page.url or "login" in page.url.lower()
     ):
-        raise RuntimeError("GrabFood login did not complete; saved account, captcha, or OTP may require manual login.")
+        state = await classify_login_state(page)
+        raise RuntimeError(f"GrabFood manual gate required ({state['type']}): {state['message']}")
     return page
 
 
@@ -782,21 +905,19 @@ async def collect_reviews(args: argparse.Namespace) -> tuple[AccountConfig, dict
     username, password = load_credentials(args, config)
     since_date = datetime.now().date() - timedelta(days=args.days)
     reviews: list[dict[str, Any]] = []
-    errors: list[dict[str, Any]] = []
+    errors: list[Any] = []
     stores: list[str] = []
+    diagnostics: dict[str, str] = {}
+    manual_gate_required = False
+    manual_gate_type = ""
 
     from playwright.async_api import async_playwright
 
-    config.profile_dir.mkdir(parents=True, exist_ok=True)
     async with async_playwright() as playwright:
-        launch_options: dict[str, Any] = {
-            "headless": args.headless,
-            "viewport": {"width": 1920, "height": 1080},
-        }
-        channel = default_browser_channel()
-        if channel:
-            launch_options["channel"] = channel
-        context = await playwright.chromium.launch_persistent_context(str(config.profile_dir), **launch_options)
+        context = None
+        browser = None
+        storage_state_path: Path | None = None
+        context, browser, storage_state_path = await launch_browser_context(playwright, config, args)
         page = context.pages[0] if context.pages else await context.new_page()
         page._grab_json_payloads = []
 
@@ -815,39 +936,48 @@ async def collect_reviews(args: argparse.Namespace) -> tuple[AccountConfig, dict
                 pass
 
         context.on("response", on_response)
-        page = await ensure_logged_in(page, config, username, password, args.manual_login)
-        await open_feedback_page(page)
-        await apply_base_filters(page, config)
-        if args.all_stores_only:
-            stores = [config.store_scope_label]
-        else:
-            stores = await list_store_options(page, config)
-            if args.store_name:
-                stores = [store for store in stores if args.store_name.lower() in store.lower()]
-            if args.limit_stores:
-                stores = stores[: args.limit_stores]
-            if not stores:
+        try:
+            page = await ensure_logged_in(page, config, username, password, args.manual_login)
+            await open_feedback_page(page)
+            await apply_base_filters(page, config)
+            if args.all_stores_only:
                 stores = [config.store_scope_label]
+            else:
+                stores = await list_store_options(page, config)
+                if args.store_name:
+                    stores = [store for store in stores if args.store_name.lower() in store.lower()]
+                if args.limit_stores:
+                    stores = stores[: args.limit_stores]
+                if not stores:
+                    stores = [config.store_scope_label]
 
-        for store in stores:
-            if len(reviews) >= args.max_reviews:
-                break
-            try:
-                if store != config.store_scope_label:
-                    await select_store(page, store)
-                remaining = args.max_reviews - len(reviews)
-                page_rows = await collect_current_store(page, config, since_date, remaining)
-                for row in page_rows:
-                    if store != config.store_scope_label and not row.get("Store"):
-                        row["Store"] = store
-                    reviews.append(row)
-                while len(reviews) < args.max_reviews and await click_next_page(page):
+            for store in stores:
+                if len(reviews) >= args.max_reviews:
+                    break
+                try:
+                    if store != config.store_scope_label:
+                        await select_store(page, store)
                     remaining = args.max_reviews - len(reviews)
-                    reviews.extend(await collect_current_store(page, config, since_date, remaining))
-            except Exception as exc:
-                errors.append({"store": store, "error": str(exc)})
-
-        await context.close()
+                    page_rows = await collect_current_store(page, config, since_date, remaining)
+                    for row in page_rows:
+                        if store != config.store_scope_label and not row.get("Store"):
+                            row["Store"] = store
+                        reviews.append(row)
+                    while len(reviews) < args.max_reviews and await click_next_page(page):
+                        remaining = args.max_reviews - len(reviews)
+                        reviews.extend(await collect_current_store(page, config, since_date, remaining))
+                except Exception as exc:
+                    errors.append({"store": store, "error": str(exc)})
+        except Exception as exc:
+            message = str(exc)
+            errors.append(message)
+            if "manual gate" in message.lower() or "login" in message.lower() or "captcha" in message.lower() or "otp" in message.lower():
+                manual_gate_required = True
+                state = await classify_login_state(page)
+                manual_gate_type = state.get("type", "")
+            diagnostics = await write_diagnostics(page, config, message, args.output_prefix)
+        finally:
+            await close_browser_context(context, browser, storage_state_path)
 
     reviews = dedupe_rows(reviews)[: args.max_reviews]
     payload = {
@@ -864,6 +994,15 @@ async def collect_reviews(args: argparse.Namespace) -> tuple[AccountConfig, dict
         "review_count": len(reviews),
         "reviews": reviews,
         "errors": errors,
+        "manual_gate_required": manual_gate_required,
+        "manual_gate_type": manual_gate_type,
+        "diagnostics": diagnostics,
+        "storage_state": str((Path(args.storage_state).expanduser() if args.storage_state else default_storage_state_path(config)).resolve()),
+        "retry_suggestions": [
+            "在可视浏览器完成 GrabFood Portal 登录，直到 Feedback → Ratings and reviews 可见。",
+            "登录完成后导出或保留同一 storage_state，再重跑当前任务。",
+            "如出现 OTP/captcha/saved-account confirmation，必须人工完成；脚本不会绕过。",
+        ],
     }
     return config, payload
 
@@ -882,6 +1021,11 @@ async def main() -> None:
                 "store_count": payload["store_count"],
                 "review_count": payload["review_count"],
                 "errors": payload["errors"][:5],
+                "manual_gate_required": payload.get("manual_gate_required", False),
+                "manual_gate_type": payload.get("manual_gate_type", ""),
+                "diagnostics": payload.get("diagnostics", {}),
+                "storage_state": payload.get("storage_state", ""),
+                "retry_suggestions": payload.get("retry_suggestions", []),
                 "stores": payload["stores"][:10],
                 "sample": payload["reviews"][:3],
             },

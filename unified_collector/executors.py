@@ -155,6 +155,7 @@ def _run_python(
         )
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
+    env["GLOBALREVIEWOPS_NONINTERACTIVE"] = "1"
     if extra_env:
         env.update({str(key): str(value) for key, value in extra_env.items() if str(value)})
     timeout_seconds = int(timeout or task.options.get("timeout", 900))
@@ -183,7 +184,7 @@ def _run_python(
     stdout_lines = [line for line in process.stdout.splitlines() if line.strip()]
     summary = _parse_summary(process.stdout)
     errors: list[str] = []
-    if process.returncode != 0:
+    if process.returncode != 0 and not summary.get("errors"):
         errors.append(process.stderr.strip() or process.stdout.strip() or f"exit code {process.returncode}")
     if summary.get("errors"):
         errors.extend(str(item) for item in summary["errors"])
@@ -233,6 +234,8 @@ def run_grabfood(task: CollectionTask) -> ExecutorResult:
         args.extend(["--limit-stores", str(task.options["limit_stores"])])
     if task.options.get("store_name"):
         args.extend(["--store-name", str(task.options["store_name"])])
+    if task.options.get("storage_state"):
+        args.extend(["--storage-state", str(task.options["storage_state"])])
     credential_env = {}
     if account_record and account_record.username and account_record.password:
         env_prefix = f"GRABFOOD_{account.upper()}"
@@ -601,6 +604,10 @@ def run_mfood(task: CollectionTask) -> ExecutorResult:
         args.extend(["--portal-url", str(task.options["portal_url"])])
     if task.options.get("login_url"):
         args.extend(["--login-url", str(task.options["login_url"])])
+    if task.options.get("profile_name"):
+        args.extend(["--profile-name", str(task.options["profile_name"])])
+    if task.options.get("storage_state"):
+        args.extend(["--storage-state", str(task.options["storage_state"])])
     result = _run_python(args, task, extra_env=credential_env)
     metrics = {
         **result.metrics,
